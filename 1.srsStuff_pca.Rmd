@@ -1,0 +1,385 @@
+---
+title: "srs_PCA"
+author: "Christen Bossu"
+date: "06/06/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+In terminal on your cluster, you'll need to filter the merged gatk vcf file. If the vcf file doesn't have the MISSING info field (mine doesn't), you can filter in vcftools
+
+vcftools option below: 
+
+If vcftools is a module that your cluster has installed globablly, load it. Otherwise, you can install it yourself and put it in your path and will not need the `module load vcftools` line.
+
+```
+module load vcftools
+vcftools --vcf COYEP1-4c.merged_gatk.srs_filt.vcf --out COYEP1-4c.merged_gatk.srs_filt.75. --recode --maf 0.05 --max-maf 0.95 --min-alleles 2 --max-alleles 2 --max-missing 0.5 
+```
+
+Get allele depths for 4,019,279 sites of 15464410 sites using bcftools
+```
+bcftools query -f '%CHROM\t%POS[\t%AD]\n' COYEP1-4c.merged_gatk.srs_filt.vcf > COYEP1_P4c.allele_depths.txt
+```
+
+## Covariance analysis
+First install and load packages you'll need
+```{r}
+#remotes::install_github("eriqande/srsStuff", upgrade = FALSE)
+library(srsStuff)
+library(tidyverse)
+library(gdata)
+library(RColorBrewer)
+
+```
+
+Next specify the files with the individual names and the allele depth file
+```{r}
+snames <- read_lines("data/test.ind")
+
+AllCOYE<-srs_covar(file="data/COYEP1_4c.allele_depths.subset.txt", sample_names=snames, freq_thresh = 0)
+saveRDS(AllCOYE, "data/COYE.srs_filtered.202ind.srs.subset.rds")
+AllCOYE <- readRDS("data/COYE.srs_filtered.202ind.srs.subset.rds")
+```
+
+Incorporate the meta data
+```{r}
+meta<-read.xls("data/COYE_master_Updated06062022.xlsx",sheet=3) %>% dplyr::select(Sample_data,State,Location) %>% rename(vcf_name=Sample_data,Region_site=State,Region_pop=Location) %>% filter(vcf_name %in% AllCOYE$sample_names) %>% distinct() %>% filter(Region_site!="NA") %>% arrange(Region_site,vcf_name)
+dim(meta)
+meta %>% distinct(Region_site)
+```
+
+
+
+Next to create the covariance matrix
+# A function from Eric to get everything prepped and tidy
+```{r}
+prep_output <- function(A) {
+
+  # first for each individual i, get the number of sites at which
+  # that individual had a read and also another individual, j, averaged
+  # over all j.  This tells us on average how many markers went into
+  # compute the covariance for each individual.
+  m <- A$M
+  diag(m) <- 0
+  ave_sites <- tibble(
+    vcf_name = A$sample_names,
+    ave_sites = rowMeans(m) * ncol(m) / (ncol(m) - 1)
+  )
+
+  # do the whole eigendecomposition on the standard covariance matrix.
+  eig <- eigen(A$Cov)
+  colnames(eig$vectors) <- sprintf("PC-%02d", 1:ncol(eig$vectors))
+
+
+  pca_tib <- as_tibble(eig$vectors[,1:6]) %>%
+    mutate(vcf_name = A$sample_names) %>%
+    dplyr::select(vcf_name, everything())
+
+  pca_long <- pca_tib %>%
+    tidyr::gather(., key = "PC", "val", -vcf_name)
+
+  # then expand a grid of the possible comparisons (ordered)
+  pca_pairs <- expand.grid(vcf_name = pca_tib$vcf_name,
+                           PCx = sprintf("PC-%02d", 1:6),
+                           PCy = sprintf("PC-%02d", 1:6),
+                           stringsAsFactors = FALSE) %>%
+    tibble::as_tibble() %>%
+    dplyr::left_join(., pca_long, by = c("vcf_name", "PCx" = "PC")) %>%
+    dplyr::rename(val_x = val) %>%
+    dplyr::left_join(pca_long, by = c("vcf_name", "PCy" = "PC")) %>%
+    dplyr::rename(val_y = val)  %>%
+    left_join(ave_sites, by = "vcf_name") %>%
+    left_join(meta, by = "vcf_name")
+
+  WaG <- (A$IBS - A$Mt_S) / (1 - A$Mt_S)
+  eig <- eigen(WaG)
+  colnames(eig$vectors) <- sprintf("PC-%02d", 1:ncol(eig$vectors))
+
+
+  pca_tib <- as_tibble(eig$vectors[,1:6]) %>%
+    mutate(vcf_name = A$sample_names) %>%
+    dplyr::select(vcf_name, everything())
+
+  pca_long <- pca_tib %>%
+    tidyr::gather(., key = "PC", "val", -vcf_name)
+
+  pcp <- expand.grid(vcf_name = pca_tib$vcf_name,
+                     PCx = sprintf("PC-%02d", 1:6),
+                     PCy = sprintf("PC-%02d", 1:6),
+                     stringsAsFactors = FALSE) %>%
+    tibble::as_tibble() %>%
+    dplyr::left_join(., pca_long, by = c("vcf_name", "PCx" = "PC")) %>%
+    dplyr::rename(WaG_x = val) %>%
+    dplyr::left_join(pca_long, by = c("vcf_name", "PCy" = "PC")) %>%
+    dplyr::rename(WaG_y = val)
+
+  # then join those both and return them
+  left_join(pcp, pca_pairs,
+            by = c("vcf_name", "PCx", "PCy"))
+}
+```
+
+##BUOW Breeding Site Analysis
+```{r}
+breedingCOYE.prep <- prep_output(AllCOYE) #%>%
+  #filter(Region_pop == "Breeding")
+
+# change the factor levels of sites!
+factor.levels <- c("CA", "MT","WA","BC", "AK",
+                   "WY", "NV","NM",
+                   "NY", "PA", "NB","QUE","NC",
+                   "KY", "MI","ON","AB","KS","AL",
+                   "AZ","FL")
+                   
+breedingCOYE.prep$Region_site <- factor(x = breedingCOYE.prep$Region_site,
+                                   levels = factor.levels)
+
+
+West.cols <- brewer.pal(n = 6, name = "PuRd")[c(1:5)]
+SW.cols <- brewer.pal(n = 9, name = "BuGn")[c(3:5)]
+NE.cols <- brewer.pal(n = 9, name = "Blues")[c(2:7)]
+MW.cols <- brewer.pal(n = 9, name = "YlOrRd")[c(2:8)]
+Res.cols<-brewer.pal(n = 9, name = "Set1")[c(8,9)]
+pca.color <- c(West.cols,SW.cols,NE.cols,MW.cols,Res.cols)
+```
+
+##Initial Plots
+Facet grid:
+```{r}
+bp <- ggplot(breedingCOYE.prep, aes(x = val_x, y = val_y, color = Region_site)) +
+  facet_grid(PCy ~ PCx) +
+  scale_color_manual(values = pca.color) +
+  geom_point(size = 3, stroke = 0.15) +
+  theme_bw() + theme(legend.key.size = unit(0.1, "cm")) 
+  
+bp
+```
+
+##Figure out which indivduals to remove
+
+```{r}
+cov_and_M <- function(A) {
+  tibble(vcf_name_1 = rep(A$sample_names, times = nrow(A$Cov)),
+         vcf_name_2 = rep(A$sample_names, each = ncol(A$Cov)),
+         covar = as.vector(A$Cov),
+         M = as.vector(A$M),
+         WaG = as.vector((A$IBS - A$Mt_S) / (1 - A$Mt_S))
+  )
+}
+
+CM <- cov_and_M(AllCOYE)
+#CM %>% filter(vcf_name_1=="11N3564")
+#CM %>%
+#   filter(vcf_name_1 < vcf_name_2) %>%
+#   arrange(desc(M)) %>%
+#   ggplot(aes(x = covar, y = 2, colour = log10(M))) +
+#   geom_jitter(width = 0, height = 1, alpha = 0.6) +
+#   scale_colour_viridis_c()
+
+
+CM_cut <- CM %>%
+  filter(vcf_name_1 < vcf_name_2) %>%
+  arrange(desc(M)) %>%
+  mutate(m_group = cut(M, breaks = c(0, 1e6, 5e6, 1e7, 1e8, 2e8)))
+
+
+g <- ggplot(CM_cut, aes(x = covar, y = 2, colour = log10(M), size = 2)) +
+  geom_jitter(width = 0, height = 1) +
+  scale_colour_viridis_c() +
+  facet_wrap(~m_group, ncol = 1) +
+  theme_bw()
+
+g
+```
+
+Save file.
+```{r}
+ggsave(g, filename = "plots/srs_plots/coye-50missing-covar-and-M-facets.pdf",
+      width = 20, height = 20)
+```
+
+##Create table to individuals to remove.
+Santa Clara birds should be on there due to relatedness, but are there others that I might not have removed before? Choose the covariance cut off that works for your data.
+
+```{r}
+outlier_CM_cut <- CM_cut %>% 
+  filter(covar > 0.4)
+outlier_covar <- unique(c(unique(outlier_CM_cut$vcf_name_1), unique(outlier_CM_cut$vcf_name_2)))
+
+
+meta[meta$vcf_name %in% outlier_covar,]
+```
+
+```{r}
+meta[meta$vcf_name %in% outlier_covar,] %>% write.table("output_files/srs_results/COYEind_outlier.cov_gr_.4.txt",row.names=F,quote=F,sep="\t")
+```
+
+Need to install packages for get gRbase to run.
+```{r}
+#if (!requireNamespace("BiocManager", quietly = TRUE))
+#    install.packages("BiocManager")
+
+#BiocManager::install("graph")
+#BiocManager::install("Rgraphviz")
+#BiocManager::install("RBGL")
+```
+
+Remove just the very related first (cov > 0.4), #then increase cov removal (cov > .3)
+
+
+```{r}
+library(graph)
+library(Rgraphviz)
+library(RBGL)
+library(gRbase)
+```
+
+if libraries above installed, skip to this step to identify which individual from cluster to keep!
+```{r}
+matchers <- outlier_CM_cut %>%
+  dplyr::select(vcf_name_1, vcf_name_2) %>%
+  rename(indiv_1 = vcf_name_1, indiv_2 = vcf_name_2)
+  
+
+edgelist <- lapply(1:nrow(matchers), function(x) c(matchers$indiv_1[x], matchers$indiv_2[x]))
+gR <- gRbase::ug(edgelist)
+CnC <- graph::connComp(gR)
+CnC_tib <- tibble(
+  indiv = unlist(CnC),
+  cluster = rep(1:length(CnC), sapply(CnC, length))
+) 
+CnC_tib %>% rename(vcf_name=indiv) %>% left_join(meta[meta$vcf_name %in% outlier_covar,]) %>% write.table("output_files/srs_results/COYE.srs.cov.4.Cluster_choose1.txt",row.names=F,quote=F,sep="\t")
+CnC_tib
+```
+
+Individuals to remove. Here, I choose one individual per cluster to keep (the rest are removed). 
+
+```{r}
+#Keep these for cov group > 0.4
+keep.these <- c("MOR_12",
+                   "17N02622",
+                   "16N0010",
+                   "02N8421",
+                   "16N0007",
+                   "16N0012",
+                   "98N2078")
+
+#Keep these for cov group > 0.25
+keep.these <- c("MOR_12",
+                   "17N02622",
+                   "16N0005",
+                   "16N0007",
+                   "98N2078",
+                   "02N8421")
+
+
+remove.these <- CnC_tib %>%
+  dplyr::select(indiv) %>%
+  filter(!indiv %in% keep.these) %>%
+  pull()
+remove.these %>% write.table("output_files/srs_results/COYE.remove_indiv.cov.4.txt",row.names=F,quote=F,sep="\t")
+remove.these.snames.index <- c(1:202)[snames %in% remove.these]
+```
+
+Re-do the eigenvalues and PCA. The creates factor levels and colors for each population.
+
+```{r}
+AllCOYE.new <- AllCOYE
+
+AllCOYE.new$IBS <- AllCOYE$IBS[-c(remove.these.snames.index),
+                          -c(remove.these.snames.index)]
+AllCOYE.new$Cov <- AllCOYE$Cov[-c(remove.these.snames.index),
+                          -c(remove.these.snames.index)]
+AllCOYE.new$M <- AllCOYE$M[-c(remove.these.snames.index),
+                          -c(remove.these.snames.index)]
+AllCOYE.new$Mt_S <- AllCOYE$Mt_S[-c(remove.these.snames.index),
+                          -c(remove.these.snames.index)]
+AllCOYE.new$sample_names <- snames[!snames %in% remove.these]
+
+breedingCOYE.new.prep <- prep_output(AllCOYE.new) 
+
+# change the factor levels of sites!
+factor.levels <- c("CA", "MT","WA","BC", "AK","AB",
+                   "WY", "NV","NM",
+                   "NY", "PA", "NB","QUE",
+                   "KY", "MI","ON","KS",
+                   "FL","AL","NC",
+                   "AZ")
+                   
+breedingCOYE.new.prep$Region_site <- factor(x = breedingCOYE.new.prep$Region_site,
+                                   levels = factor.levels)
+
+West.cols <- brewer.pal(n = 6, name = "PuRd")[c(1:6)]
+SW.cols <- brewer.pal(n = 9, name = "BuGn")[c(3:5)]
+NE.cols <- brewer.pal(n = 9, name = "Blues")[c(3:6)]
+MW.cols <- brewer.pal(n = 9, name = "YlOrRd")[c(2:5)]
+South.cols<-brewer.pal(n = 9, name = "Greys")[c(3:5)]
+Res.cols<-brewer.pal(n = 9, name = "YlOrRd")[c(7)]
+pca.color <- c(West.cols,SW.cols,NE.cols,MW.cols,South.cols,Res.cols)
+
+bp <- ggplot(breedingCOYE.new.prep, aes(x = val_x, y = val_y, color = Region_site)) +
+  facet_grid(PCy ~ PCx) +
+  scale_color_manual(values = pca.color) +
+  geom_point(size = 3, stroke = 0.15) +
+  theme_bw() + theme(legend.key.size = unit(0.1, "cm"))
+bp
+```
+
+PCs 1 and 2 with > 0.2 removed. Fingers crossed here! Does it change?
+```{r}
+pc.eigenvalues <- eigen(AllCOYE.new$Cov)$values
+pc.var.expl <- pc.eigenvalues[1:2] / sum(pc.eigenvalues) * 100
+
+pc.var.expl
+
+PC12.prep <- breedingCOYE.new.prep %>%
+  filter(PCx == "PC-01", PCy == "PC-02")
+
+pca12 <- ggplot(PC12.prep, aes(x = val_x, y = val_y, color = Region_site)) +
+  scale_color_manual(values = pca.color) +
+  geom_point(size = 3, stroke = 0.15) +
+  #geom_text(aes(x = val_x, y = val_y,label=Region_site))+
+  theme_bw() + theme(aspect.ratio=1) + 
+  theme(legend.key.size = unit(0.1, "cm"))+
+  xlab("PC1: 14.978055%") +
+  ylab("PC2: 0.715093%") +
+  guides(fill = guide_legend(override.aes=list(shape=22, stroke = 0.1, size = 6)),
+         shape = guide_legend(override.aes=list(stroke = 0.35, size = 4)))
+  
+pca12
+```
+
+
+```{r}
+ggsave(pca12, filename = "plots/srs_plots/COYE.PC1_PC2.cov_gr_.4.195ind.pdf",
+      width = 7, height = 7)
+```
+
+Let's look at PC2 and PC3
+```{r}
+pc.eigenvalues <- eigen(AllCOYE.new$Cov)$values
+pc.var.expl <- pc.eigenvalues[2:3] / sum(pc.eigenvalues) * 100
+pc.var.expl
+PC23.prep <- breedingCOYE.new.prep %>%
+  filter(PCx == "PC-02", PCy == "PC-03")
+
+pca23 <- ggplot(PC23.prep, aes(x = val_x, y = val_y, color = Region_site)) +
+  scale_color_manual(values = pca.color) +
+  geom_point(size = 3, stroke = 0.15) +
+  theme_bw() +
+  theme(legend.key.size = unit(0.1, "cm")) +
+  xlab("PC1: 0.715093%") +
+  ylab("PC2: 0.680002%") 
+  
+pca23
+```
+
+```{r}
+ggsave(pca23, filename = "plots/srs_plots/COYE.PC2_PC3.cov_gr_.4.pdf",
+      width = 7, height = 7)
+```
+
