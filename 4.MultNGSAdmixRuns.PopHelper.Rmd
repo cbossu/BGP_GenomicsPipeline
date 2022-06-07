@@ -44,65 +44,68 @@ head(slist[[1]])
 attributes(slist)
 
 head(tabulateQ(slist),writetable=T)
-??tabulateQ
+
 ```
 ```{r}
 summariseQ(tabulateQ(slist),writetable=T)
 ```
-```{r}
+```{r, echo=False }
 library(gridExtra)
 #The rownames of ‘qlist’ can also be modified by the user by adding custom individual labels.
-inds <- read.delim("~/Documents/CurrentProjects/CSU_UCLA/BGP/HETH/HETH.all.clean.hethv0.rm_hets.rmrel.ind",header=FALSE,stringsAsFactors=F)
+inds <- read_delim("../../data/admixture/coye.subset.no_chr.fam",col_names =FALSE,delim=" ")
 dim(inds)
 # add indlab to one run
-rownames(slist[[1]]) <- inds$V1
+rownames(slist[[1]]) <- inds$X1
 # if all runs are equal length, add indlab to all runs
-if(length(unique(sapply(slist,nrow)))==1) slist <- lapply(slist,"rownames<-",inds$V1)
+if(length(unique(sapply(slist,nrow)))==1) slist <- lapply(slist,"rownames<-",inds$X1)
 # show row names of all runs and all samples
 lapply(slist, rownames)
 
-??analyseQ
-analyseQ(files=sfiles)
-
 ```
 
-Can't do Evanno method as it's specifically for Structure analyses
-```
-evannoMethodStructure
+Can't do Evanno method as it's specifically for Structure analyses. For admixture we do the cross validation error method
+```{r}
+cv<-read_delim("../../data/admixture/COYE.cv_error.txt",delim=" ",col_names = F) %>% rename(K=X1,cv_error=X2)
+cv
 
+ggplot() +
+  geom_line(data=cv,aes(K,cv_error)) +
+  theme_bw()
 ```
 
 ```{r}
+library(gdata)
 slist[1]
-StateLabel <- read.csv("~/Documents/CurrentProjects/UCLA_UCSC/BGP/HETH/HETH.Plate1_4.meta.final_fixed.csv",header=T,stringsAsFactors=F) %>% dplyr::select(Sample,ClimGroup,MapNum) %>% filter(Sample %in% row.names(slist[1]$`HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run1.1.Q`)) 
-State.order<-StateLabel[match(rownames(slist[1]$`HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run1.1.Q`), StateLabel$Sample), ] %>% dplyr::select(ClimGroup,MapNum,Sample) 
+StateLabel <- read.xls("../../data/srs/COYE_master_Updated06062022.xlsx",sheet=3) %>% dplyr::select(Sample_data,State) %>%
+  rename(Sample=Sample_data) %>% 
+  filter(Sample %in% row.names(slist[1]$`coye.subset.no_chr.run1.1.Q`)) 
+State.order<-StateLabel[match(rownames(slist[1]$`coye.subset.no_chr.run1.1.Q`), StateLabel$Sample), ] %>% dplyr::select(State,Sample) 
 State.order %>% distinct()
 nrow(State.order)
 sapply(State.order, is.character)
-Region <- State.order[,1,drop=FALSE]
+Region <- State.order[,1,drop=FALSE] %>% drop_na()
 nrow(Region)
-Region %>% distinct()
+Region %>% distinct() 
 
-p2rm<-plotQ(alignK(slist[c(6,7,8,9,10)]),imgoutput="join",grplab=Region,returnplot=T,exportplot=F,subsetgrp=c("NM1","AZ3","AZ1","AZ4","AZ2","UT1","Yosemite","CA1","CA2","CA3","AK1","AK3","HaidaGwaii","AK2","AK4","PrinceRupert", "Exstew", "Kispiox", "Whistler", "Golden","Maxan","FortFraser","MacKenzie","Hudson'sHope","Swan","PA1","ME2"),ordergrp=T,grplabsize=1,linesize=0.5,pointsize=2,grplabangle=90,grplabheight = 14)
+p2rm<-plotQ(alignK(slist[c(4,5,6)]),imgoutput="join",grplab=Region,returnplot=T,exportplot=F,subsetgrp=c("AZ","CA","WA","NV","NM","WY","AK","BC","MT","AB","KS","MI","KY","ON","NY","PA","NB","QUE","NC","AL","FL"),ordergrp=T,grplabsize=1,linesize=0.5,pointsize=2,grplabangle=90,grplabheight = 14)
 
-p3rm<-plotQ(alignK(slist[c(11,12,13,14,15)]),imgoutput="join",grplab=Region,returnplot=T,exportplot=F,subsetgrp=c("NM1","AZ3","AZ1","AZ4","AZ2","UT1","Yosemite","CA1","CA2","CA3","AK1","AK3","HaidaGwaii","AK2","AK4","PrinceRupert", "Exstew", "Kispiox", "Whistler", "Golden","Maxan","FortFraser","MacKenzie","Hudson'sHope","Swan","PA1","ME2"),ordergrp=T,grplabsize=1,linesize=0.5,pointsize=2,grplabangle=90,grplabheight = 14)
+p3rm<-plotQ(alignK(slist[c(7,8,9)]),imgoutput="join",grplab=Region,returnplot=T,exportplot=F,subsetgrp=c("AZ","CA","WA","NV","NM","WY","AK","BC","MT","AB","KS","MI","KY","ON","NY","PA","NB","QUE","NC","AL","FL"),ordergrp=T,grplabsize=1,linesize=0.5,pointsize=2,grplabangle=90,grplabheight = 14)
 
-p4rm<-plotQ(alignK(slist[c(16,17,18,19,20)]),imgoutput="join",grplab=Region,returnplot=T,exportplot=F,subsetgrp=c("NM1","AZ3","AZ1","AZ4","AZ2","UT1","Yosemite","CA1","CA2","CA3","AK1","AK3","HaidaGwaii","AK2","AK4","PrinceRupert", "Exstew", "Kispiox", "Whistler", "Golden","Maxan","FortFraser","MacKenzie","Hudson'sHope","Swan","PA1","ME2"),ordergrp=T,grplabsize=1,linesize=0.5,pointsize=2,grplabangle=90,grplabheight = 14)
+p4rm<-plotQ(alignK(slist[c(10,11,12)]),imgoutput="join",grplab=Region,returnplot=T,exportplot=F,subsetgrp=c("AZ","CA","WA","NV","NM","WY","AK","BC","MT","AB","KS","MI","KY","ON","NY","PA","NB","QUE","NC","AL","FL"),ordergrp=T,grplabsize=1,linesize=0.5,pointsize=2,grplabangle=90,grplabheight = 14)
 
-p5rm<-plotQ(alignK(slist[c(21,22,23,24,25)]),imgoutput="join",grplab=Region,returnplot=T,exportplot=F,subsetgrp=c("NM1","AZ3","AZ1","AZ4","AZ2","UT1","Yosemite","CA1","CA2","CA3","AK1","AK3","HaidaGwaii","AK2","AK4","PrinceRupert", "Exstew", "Kispiox", "Whistler", "Golden","Maxan","FortFraser","MacKenzie","Hudson'sHope","Swan","PA1","ME2"),ordergrp=T,grplabsize=1,linesize=0.5,pointsize=2,grplabangle=90,grplabheight = 14)
+p5rm<-plotQ(alignK(slist[c(13,14,15)]),imgoutput="join",grplab=Region,returnplot=T,exportplot=F,subsetgrp=c("AZ","CA","WA","NV","NM","WY","AK","BC","MT","AB","KS","MI","KY","ON","NY","PA","NB","QUE","NC","AL","FL"),ordergrp=T,grplabsize=1,linesize=0.5,pointsize=2,grplabangle=90,grplabheight = 14)
 
-p6rm<-plotQ(alignK(slist[c(26,27,28,29,30)]),imgoutput="join",grplab=Region,returnplot=T,exportplot=F,subsetgrp=c("NM1","AZ3","AZ1","AZ4","AZ2","UT1","Yosemite","CA1","CA2","CA3","AK1","AK3","HaidaGwaii","AK2","AK4","PrinceRupert", "Exstew", "Kispiox", "Whistler", "Golden","Maxan","FortFraser","MacKenzie","Hudson'sHope","Swan","PA1","ME2"),ordergrp=T,grplabsize=1,linesize=0.5,pointsize=2,grplabangle=90,grplabheight = 14)
+p6rm<-plotQ(alignK(slist[c(16,17,18)]),imgoutput="join",grplab=Region,returnplot=T,exportplot=F,subsetgrp=c("AZ","CA","WA","NV","NM","WY","AK","BC","MT","AB","KS","MI","KY","ON","NY","PA","NB","QUE","NC","AL","FL"),ordergrp=T,grplabsize=1,linesize=0.5,pointsize=2,grplabangle=90,grplabheight = 14)
 
-p7rm<-plotQ(alignK(slist[c(31,32,33,34,35)]),imgoutput="join",grplab=Region,returnplot=T,exportplot=F,subsetgrp=c("NM1","AZ3","AZ1","AZ4","AZ2","UT1","Yosemite","CA1","CA2","CA3","AK1","AK3","HaidaGwaii","AK2","AK4","PrinceRupert", "Exstew", "Kispiox", "Whistler", "Golden","Maxan","FortFraser","MacKenzie","Hudson'sHope","Swan","PA1","ME2"),ordergrp=T,grplabsize=1,linesize=0.5,pointsize=2,grplabangle=90,grplabheight = 14)
 
-pdf("HETH.v0.all.rmcont.Admix.K2-7.pdf",useDingbats = F)
-grid.arrange(p2rm$plot[[1]],p3rm$plot[[1]],p4rm$plot[[1]],p5rm$plot[[1]],p6rm$plot[[1]],p7rm$plot[[1]],layout_matrix=matrix(c(1,2,3,4,5,6),ncol=2,byrow=T))
+pdf("../../plots/admixture_plots/coye.admix.K2-6.pdf",useDingbats = F)
+grid.arrange(p2rm$plot[[1]],p3rm$plot[[1]],p4rm$plot[[1]],p5rm$plot[[1]],p6rm$plot[[1]],layout_matrix=matrix(c(1,2,3,4,5,NA),ncol=2,byrow=T))
 dev.off()
 ```
-
+Once you choose the plot that makes the most sense to you, choose it below and print it out for the BGP map.
 ```{r}
 #output the K=5, run 1
-cbind(State.order,slist[[21]])
-write.table(cbind(State.order,slist[[21]]),file="HETH.regionFID.rmcont.K5.run1.admixture.indivq",quote=F,sep="\t")
+cbind(State.order,slist[[13]])
+write.table(cbind(State.order,slist[[13]]),file="../../output/admixture_results/coye.subset.K5.run1.admixture.indivq",quote=F,sep="\t")
 ```
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
