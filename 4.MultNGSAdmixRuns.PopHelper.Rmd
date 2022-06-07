@@ -7,6 +7,7 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = 'output/admixture_results')
 ```
 
 ## PopHelper
@@ -31,10 +32,7 @@ packageDescription("pophelper", fields="Version")
 
 The next step is to set the working directory. The working directory is a folder that usually contains the run files of interest so as to allow R to access it. The working directory must have read-write-execute permissions. Functions may produce outputs such as text files or images which will be exported to the working directory. The working directory can be set by running the command below using a path or by selecting the folder interactively in the popup window.
 ```{r}
-setwd("~/Documents/CurrentProjects/CSU_UCLA/BGP/HETH/admixture_rmcont/")
-# file is located in the current working directory. use full filename.
-
-sfiles <- c("HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run1.1.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run2.1.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run3.1.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run4.1.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run5.1.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run1.2.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run2.2.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run3.2.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run4.2.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run5.2.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run1.3.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run2.3.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run3.3.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run4.3.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run5.3.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run1.4.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run2.4.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run3.4.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run4.4.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run5.4.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run1.5.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run2.5.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run3.5.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run4.5.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run5.5.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run1.6.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run2.6.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run3.6.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run4.6.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run5.6.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run1.7.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run2.7.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run3.7.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run4.7.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run5.7.Q")
+sfiles <- c("coye.subset.no_chr.run1.1.Q","coye.subset.no_chr.run2.1.Q","coye.subset.no_chr.run3.1.Q","coye.subset.no_chr.run1.2.Q","coye.subset.no_chr.run2.2.Q","coye.subset.no_chr.run3.2.Q","coye.subset.no_chr.run1.3.Q","coye.subset.no_chr.run2.3.Q","coye.subset.no_chr.run3.3.Q","coye.subset.no_chr.run1.4.Q","coye.subset.no_chr.run2.4.Q","coye.subset.no_chr.run3.4.Q","coye.subset.no_chr.run1.5.Q","coye.subset.no_chr.run2.5.Q","coye.subset.no_chr.run3.5.Q","coye.subset.no_chr.run1.6.Q","coye.subset.no_chr.run2.6.Q","coye.subset.no_chr.run3.6.Q")
 # basic usage
 slist <- readQ(files=sfiles,filetype="basic",indlabfromfile=F)
 # select files interactively

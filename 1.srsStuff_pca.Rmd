@@ -7,6 +7,7 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = 'data/srs')
 ```
 
 In terminal on your cluster, you'll need to filter the merged gatk vcf file. If the vcf file doesn't have the MISSING info field (mine doesn't), you can filter in vcftools
@@ -43,16 +44,16 @@ library(RColorBrewer)
 
 Next specify the files with the individual names and the allele depth file
 ```{r}
-snames <- read_lines("data/srs/test.ind")
+snames <- read_lines("test.ind")
 
-AllCOYE<-srs_covar(file="data/srs/COYEP1_4c.allele_depths.subset.txt", sample_names=snames, freq_thresh = 0)
-saveRDS(AllCOYE, "data/srs/COYE.srs_filtered.202ind.srs.subset.rds")
-AllCOYE <- readRDS("data/srs/COYE.srs_filtered.202ind.srs.subset.rds")
+AllCOYE<-srs_covar(file="COYEP1_4c.allele_depths.subset.txt", sample_names=snames, freq_thresh = 0)
+saveRDS(AllCOYE, "COYE.srs_filtered.202ind.srs.subset.rds")
+AllCOYE <- readRDS("COYE.srs_filtered.202ind.srs.subset.rds")
 ```
 
 Incorporate the meta data
 ```{r}
-meta<-read.xls("data/srs/COYE_master_Updated06062022.xlsx",sheet=3) %>% dplyr::select(Sample_data,State,Location) %>% rename(vcf_name=Sample_data,Region_site=State,Region_pop=Location) %>% filter(vcf_name %in% AllCOYE$sample_names) %>% distinct() %>% filter(Region_site!="NA") %>% arrange(Region_site,vcf_name)
+meta<-read.xls("COYE_master_Updated06062022.xlsx",sheet=3) %>% dplyr::select(Sample_data,State,Location) %>% rename(vcf_name=Sample_data,Region_site=State,Region_pop=Location) %>% filter(vcf_name %in% AllCOYE$sample_names) %>% distinct() %>% filter(Region_site!="NA") %>% arrange(Region_site,vcf_name)
 dim(meta)
 meta %>% distinct(Region_site)
 ```
@@ -203,7 +204,7 @@ g
 
 Save file.
 ```{r}
-ggsave(g, filename = "plots/srs_plots/coye-50missing-covar-and-M-facets.pdf",
+ggsave(g, filename = "../../plots/srs_plots/coye-50missing-covar-and-M-facets.pdf",
       width = 20, height = 20)
 ```
 
@@ -220,7 +221,7 @@ meta[meta$vcf_name %in% outlier_covar,]
 ```
 
 ```{r}
-meta[meta$vcf_name %in% outlier_covar,] %>% write.table("output_files/srs_results/COYEind_outlier.cov_gr_.4.txt",row.names=F,quote=F,sep="\t")
+meta[meta$vcf_name %in% outlier_covar,] %>% write.table("../../output/srs_results/COYEind_outlier.cov_gr_.4.txt",row.names=F,quote=F,sep="\t")
 ```
 
 Need to install packages for get gRbase to run.
@@ -257,7 +258,7 @@ CnC_tib <- tibble(
   indiv = unlist(CnC),
   cluster = rep(1:length(CnC), sapply(CnC, length))
 ) 
-CnC_tib %>% rename(vcf_name=indiv) %>% left_join(meta[meta$vcf_name %in% outlier_covar,]) %>% write.table("output_files/srs_results/COYE.srs.cov.4.Cluster_choose1.txt",row.names=F,quote=F,sep="\t")
+CnC_tib %>% rename(vcf_name=indiv) %>% left_join(meta[meta$vcf_name %in% outlier_covar,]) %>% write.table("output/srs_results/COYE.srs.cov.4.Cluster_choose1.txt",row.names=F,quote=F,sep="\t")
 CnC_tib
 ```
 
@@ -286,7 +287,7 @@ remove.these <- CnC_tib %>%
   dplyr::select(indiv) %>%
   filter(!indiv %in% keep.these) %>%
   pull()
-remove.these %>% write.table("output_files/srs_results/COYE.remove_indiv.cov.4.txt",row.names=F,quote=F,sep="\t")
+remove.these %>% write.table("output/srs_results/COYE.remove_indiv.cov.4.txt",row.names=F,quote=F,sep="\t")
 remove.these.snames.index <- c(1:202)[snames %in% remove.these]
 ```
 

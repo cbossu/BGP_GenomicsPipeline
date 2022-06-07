@@ -22,11 +22,11 @@ library(tidyverse)
 ```
 
 ```{r}
-output=LEA::vcf2geno("coye.EAST.plate1.sort.SNP.maf05.miss.clean48indv_noOut.138K.recode.vcf","coye.EAST.RAD.maf05.48ind.138K.geno")
-output=LEA::geno2lfmm("coye.EAST.RAD.maf05.48ind.138K.geno","coye.EAST.RAD.maf05.48ind.138K.geno.lfmm")
+output=LEA::vcf2geno("data/ngsRelate/COYEP1-4c.merged_gatk.srs_filt.subset.recode.vcf","coye.subset.geno")
+output=LEA::geno2lfmm("coye.subset.geno","coye.subset.geno.lfmm")
 
 summary(output)
-ind<-read_delim("../LFMM/HETH.keep_noHZ.txt",delim="\t",col_names=F) %>% rename(IID=X1)
+ind<-read_delim("data/srs/test.ind",delim="\t",col_names=F) %>% rename(IID=X1)
 dim(ind)
 met<-read_delim('HETH.Plate1_4.meta.final_fixed.csv',delim=",") 
 env<-read_delim("LFMM/hethindvsswenv.txt",delim=" ",col_names=T)
@@ -42,12 +42,12 @@ pdf("HETH.rmcont.snmf_geno.K1-10.plot.pdf",useDingbats = F)
 plot(project, col = "blue", pch = 19, cex = 1.2)
 dev.off()
 
-# select the run with the lowest cross-entropy value
+# Normally select the run with the lowest cross-entropy value
 best = which.min(cross.entropy(project,K=2))
 plot(project, col = "blue", pch = 19, cex = 1.2)
 
 # Impute the missing genotypes
-impute(project, "HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.geno.lfmm",method = 'mode', K = 4, run = best)
+impute(project, "HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.geno.lfmm",method = 'mode', K = 7, run = best)
 ```
 
 

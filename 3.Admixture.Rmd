@@ -7,24 +7,56 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = 'output/admixture_results')
 ```
 
-## R Markdown
+## Format input file
+From your vcf file, create a ped/map file.
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+```
+plink --vcf data/ngsRelate/COYEP1-4c.merged_gatk.srs_filt.subset.recode.vcf --out data/admixture/coye.subset --aec --recode
+```
+The map file needs some formating here.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+For some reason, admixture doesn't like have alternative chromosomes, so for each ped file, I humanize it, either removing the chromosome/scaffold names that admixture doesn't like and replacing with 0 or 1.
 
-```{r cars}
-summary(cars)
+```
+cd data/admixture
+cat coye.subset.map|awk '{print"1\t"$1"."$4"\t"$3"\t"$4}' > coye.subset.no_chr.map
 ```
 
-## Including Plots
+Now run plink so you have the same prefix for map and ped files
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+```
+plink --ped coye.subset.ped --map coye.subset.no_chr.map --out coye.subset.no_chr --make-bed --aec
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+## Running admixture is relatively easy
+I have admixture in my path, so make sure you do too.
+
+```
+for j in 1 2 3 4 5 ;
+do
+for K in 1 2 3 4 5 6 7 8; \
+do admixture --cv coye.subset.no_chr.bed $K | tee log_coye${K}.run"$j".out;
+mv coye.subset.no_chr.${K}.Q ../../output/admixture_results/coye.subset.no_chr.run"$j".${K}.Q;
+mv coye.subset.no_chr.${K}.P ../../output/admixture_results/coye.subset.no_chr.run"$j".${K}.P;
+done
+done
+```
+
+Then for admixture we look at the cv error, where the number in parentheses is the standard error of the cross-validation error estimate.
+
+We can easily plot these values for comparison, which makes it fairly clear that K = 3 is a sensible modeling choice.
+
+I clean up these log files to read into R
+```
+grep -h CV log.coye*.out|sed 's/(K=//g'|sed 's/)://g'|cut -f 3- -d " " > COYE.cv_error.txt
+```
+
+```{r}
+cv<-read_delim("../../data/admixture/COYE.cv_error.txt",delim=" ",col_names = F) %>% rename(K=X1,cv_error=X2)
+cv
+```
+
+
