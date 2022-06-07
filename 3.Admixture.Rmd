@@ -11,10 +11,14 @@ knitr::opts_knit$set(root.dir = 'output/admixture_results')
 ```
 
 ## Format input file
-From your vcf file, create a ped/map file.
+From your vcf file, first remove your related indivdiuals. 
 
 ```
-plink --vcf data/ngsRelate/COYEP1-4c.merged_gatk.srs_filt.subset.recode.vcf --out data/admixture/coye.subset --aec --recode
+vcftools --vcf data/ngsRelate/COYEP1-4c.merged_gatk.srs_filt.subset.recode.vcf --out data/ngsRelate/coye.rm_rel.subset --remove srs_results/COYE.remove_indiv.cov.4.txt  --recode
+```
+Then create a ped/map file.
+```
+plink --vcf data/ngsRelate/coye.rm_rel.subset.recode.vcf --out data/admixture/coye.subset --aec --recode
 ```
 The map file needs some formating here.
 
@@ -35,9 +39,9 @@ plink --ped coye.subset.ped --map coye.subset.no_chr.map --out coye.subset.no_ch
 I have admixture in my path, so make sure you do too.
 
 ```
-for j in 1 2 3 4 5 ;
+for j in 1 2 3 ;
 do
-for K in 1 2 3 4 5 6 7 8; \
+for K in 2 3 4 5 6 7 8; \
 do admixture --cv coye.subset.no_chr.bed $K | tee log_coye${K}.run"$j".out;
 mv coye.subset.no_chr.${K}.Q ../../output/admixture_results/coye.subset.no_chr.run"$j".${K}.Q;
 mv coye.subset.no_chr.${K}.P ../../output/admixture_results/coye.subset.no_chr.run"$j".${K}.P;

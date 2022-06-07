@@ -52,3 +52,35 @@ Starting main algorithm
 29 (QN/Block) 	Elapsed: 5.003	Loglikelihood: -5.63128e+06	(delta): 3.49157
 30 (QN/Block) 	Elapsed: 3.941	Loglikelihood: -5.63128e+06	(delta): 3.62835
 31 (QN/Block) 	Elapsed: 3.686	Loglikelihood: -5.63127e+06	(delta): 3.11249
+32 (QN/Block) 	Elapsed: 4.192	Loglikelihood: -5.63127e+06	(delta): 2.54922
+33 (QN/Block) 	Elapsed: 4.767	Loglikelihood: -5.63127e+06	(delta): 2.0281
+34 (QN/Block) 	Elapsed: 4.874	Loglikelihood: -5.63127e+06	(delta): 1.03315
+35 (QN/Block) 	Elapsed: 3.855	Loglikelihood: -5.63127e+06	(delta): 0.572709
+36 (QN/Block) 	Elapsed: 3.615	Loglikelihood: -5.63127e+06	(delta): 0.780453
+37 (QN/Block) 	Elapsed: 3.845	Loglikelihood: -5.63127e+06	(delta): 0.622715
+38 (QN/Block) 	Elapsed: 3.617	Loglikelihood: -5.63127e+06	(delta): 0.459875
+39 (QN/Block) 	Elapsed: 5.106	Loglikelihood: -5.63127e+06	(delta): 0.460035
+40 (QN/Block) 	Elapsed: 4.076	Loglikelihood: -5.63127e+06	(delta): 1.05118
+41 (QN/Block) 	Elapsed: 4.213	Loglikelihood: -5.63126e+06	(delta): 0.301986
+42 (QN/Block) 	Elapsed: 3.699	Loglikelihood: -5.63126e+06	(delta): 0.167873
+43 (QN/Block) 	Elapsed: 3.448	Loglikelihood: -5.63126e+06	(delta): 0.0715837
+44 (QN/Block) 	Elapsed: 4.075	Loglikelihood: -5.63126e+06	(delta): 0.045033
+45 (QN/Block) 	Elapsed: 3.845	Loglikelihood: -5.63126e+06	(delta): 0.00680979
+46 (QN/Block) 	Elapsed: 3.959	Loglikelihood: -5.63126e+06	(delta): 0.00203147
+47 (QN/Block) 	Elapsed: 4.024	Loglikelihood: -5.63126e+06	(delta): 0.000478244
+48 (QN/Block) 	Elapsed: 3.611	Loglikelihood: -5.63126e+06	(delta): 0.000200902
+49 (QN/Block) 	Elapsed: 3.956	Loglikelihood: -5.63126e+06	(delta): 8.7346e-05
+Summary: 
+Converged in 49 iterations (212.263 sec)
+Loglikelihood: -5631264.652627
+Fst divergences between estimated populations: 
+	Pop0	Pop1	Pop2	Pop3	Pop4	Pop5	
+Pop0	
+Pop1	0.367	
+Pop2	0.115	0.424	
+Pop3	0.136	0.432	0.200	
+Pop4	0.157	0.385	0.225	0.236	
+Pop5	0.309	0.151	0.366	0.375	0.328	
+Pop6	0.331	0.132	0.386	0.393	0.348	0.108	
+CV error (K=7): 0.71444
+Writing output files.

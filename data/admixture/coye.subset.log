@@ -1,27 +1,29 @@
 PLINK v1.90b3.46 64-bit (13 Feb 2017)
 Options in effect:
   --allow-extra-chr
-  --out coye.subset
+  --out ../data/admixture/coye.subset
   --recode
-  --vcf COYEP1-4c.merged_gatk.srs_filt.subset.recode.vcf
+  --vcf ../../COYE.rm_rel.subset.recode.vcf
 
 Hostname: Christens-MacBook-Pro.local
-Working directory: /Users/christen2016mac/Rprojects_git/BGP_GenomicsPipeline/data/ngsRelate
-Start time: Mon Jun  6 20:01:49 2022
+Working directory: /Users/christen2016mac/Rprojects_git/BGP_GenomicsPipeline/output
+Start time: Mon Jun  6 21:53:06 2022
 
-Random number seed: 1654567309
+Random number seed: 1654573986
 8192 MB RAM detected; reserving 4096 MB for main workspace.
---vcf: coye.subset-temporary.bed + coye.subset-temporary.bim +
-coye.subset-temporary.fam written.
+--vcf: ../data/admixture/coye.subset-temporary.bed +
+../data/admixture/coye.subset-temporary.bim +
+../data/admixture/coye.subset-temporary.fam written.
 50001 variants loaded from .bim file.
-202 people (0 males, 0 females, 202 ambiguous) loaded from .fam.
-Ambiguous sex IDs written to coye.subset.nosex .
+194 people (0 males, 0 females, 194 ambiguous) loaded from .fam.
+Ambiguous sex IDs written to ../data/admixture/coye.subset.nosex .
 Using 1 thread (no multithreaded calculations invoked).
-Before main variant filters, 202 founders and 0 nonfounders present.
+Before main variant filters, 194 founders and 0 nonfounders present.
 Calculating allele frequencies... done.
-Total genotyping rate is 0.781977.
-50001 variants and 202 people pass filters and QC.
+Total genotyping rate is 0.782952.
+50001 variants and 194 people pass filters and QC.
 Note: No phenotypes present.
---recode ped to coye.subset.ped + coye.subset.map ... done.
+--recode ped to ../data/admixture/coye.subset.ped +
+../data/admixture/coye.subset.map ... done.
 
-End time: Mon Jun  6 20:01:49 2022
+End time: Mon Jun  6 21:53:06 2022

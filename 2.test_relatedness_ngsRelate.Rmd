@@ -30,22 +30,32 @@ By default, NgsRelate will estimate the allele frequencies using the individuals
 $NGSRELATE/ngsRelate -h data/ngsRelate_data/COYEP1-4c.merged_gatk.srs_filt.subset.recode.vcf -z data/test.ind -O output_files/ngsRelate_results/COYEP1-4c.merged_gatk.srs_filt.subset.recode.vcf.ngsRelate.res -T GT -c 1
 ```
 
+Now it's time to move to R. Load the libraries, we'll need
+```{r}
+library(tidyverse)
+library(gdata)
+library(ggpubr)
+```
+
+
 ##Related plots
 So you will need to do some adjusting of the file to then get it into R for plotting. Basically you added the the individual with teh -z function above, but now you need to add the region/location for each individual.
-```{r}
-meta<-read.xls("data/srs_data/COYE_master_Updated06062022.xlsx",sheet=3) %>% dplyr::select(Sample_data,State) %>% rename(Sample=Sample_data,Region_site=State)
 
-relSC<-read_delim("output_files/ngsRelate_results/COYEP1-4c.merged_gatk.srs_filt.subset.recode.vcf.ngsRelate.res",delim="\t") %>%  
-  rename(IndA=inda,IndB=indb) %>% 
+```{r}
+meta<-read.xls("data/srs/COYE_master_Updated06062022.xlsx",sheet=3) %>% dplyr::select(Sample_data,State) %>% rename(Sample=Sample_data,Region_site=State)
+
+relSC<-read_delim("output/ngsRelate_results/COYEP1-4c.merged_gatk.srs_filt.subset.recode.vcf.ngsRelate.res",delim="\t") %>%  
+  rename(IndA=ida,IndB=idb) %>% 
   dplyr::select(IndA,IndB,everything())
 
-RegA<-relSC %>% dplyr::select(IndA) %>% rename(Sample=IndA) %>% left_join(meta) %>% rename(RegionA=State)
-RegB<-relSC %>% dplyr::select(IndB) %>% rename(Sample=IndB) %>% left_join(meta) %>% rename(RegionB=State)
+RegA<-relSC %>% dplyr::select(IndA) %>% rename(Sample=IndA) %>% left_join(meta) %>% rename(RegionA=Region_site,IndA=Sample)
+RegB<-relSC %>% dplyr::select(IndB) %>% rename(Sample=IndB) %>% left_join(meta) %>% rename(RegionB=Region_site,IndB=Sample)
 
 relSC_dat<-relSC %>% left_join(RegA) %>% left_join(RegB) %>% 
-  unite("Pair",IndA:IndB,sep="_",remove=F) %>%
+  unite("Pair",IndA:IndB,sep="_",remove=F) %>% 
+  rename(K0=J9,K1=J8,K2=J7) %>% 
   mutate(RegionBoth=if_else(RegionA==RegionB,RegionA,"mixture")) %>%
-  dplyr::select(-X12,-X13)
+  dplyr::select(-X12,-X13,-a,-b) %>% filter(RegionBoth!="mixture")
 relSC %>% distinct(RegionBoth)
 ```
 

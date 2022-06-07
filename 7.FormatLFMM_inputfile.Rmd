@@ -35,10 +35,10 @@ env2<-ind %>% left_join(env) %>% write.table("LFMM/hethindvsswenv.order.txt")
 dim(env2)
 
 project = NULL
-project = snmf("HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.no_HZ.geno", K = 1:10,entropy = TRUE, repetitions = 5, project = "new")
+project = snmf("coye.subset.geno", K = 1:10,entropy = TRUE, repetitions = 5, project = "new")
 
 ##MIN num of ancestral populations is 4 for heth- doesn't make sense
-pdf("HETH.rmcont.snmf_geno.K1-10.plot.pdf",useDingbats = F)
+pdf("output/coye.lfmm.K1-10.plot.pdf",useDingbats = F)
 plot(project, col = "blue", pch = 19, cex = 1.2)
 dev.off()
 
