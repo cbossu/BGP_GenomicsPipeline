@@ -1,0 +1,467 @@
+---
+title: "Pop Assignment"
+author: "Christen Bossu"
+date: "9/29/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Libraries needed
+I'll have you download multiple programs that will not only allow you to assign individuals to breeding group based on their genotypes, but also plot this information in space. 
+
+```{r}
+library(raster)  # important to load before tidyverse, otherwise it masks select()
+library(tidyverse)
+library(sf)
+library(ggspatial)
+library(rubias)
+#install.packages("OriGen", repos="http://R-Forge.R-project.org")
+library(OriGen)
+library(RColorBrewer)
+library(ggplot2)
+library(ggpubr)
+#This is the function that calculates the distance betwen predicted lat/long and the lat/long in the meta data file
+library(geosphere)
+library(rworldmap)
+library(rgdal)
+library(spatialEco)
+library(dplyr)
+library(reshape2)
+library(rmapshaper)
+
+```
+
+
+#### Breeding Bird Shapefile
+
+Finally, we need to have a GIS Shapefile that tells us the range of the breeding birds, so that genoscape can be clipped properly.  We read this shapefile with the 
+`st_read()` function from package `sf`. 
+See code below. This also comes in handy for looking at probabilty of spatial assignment in Origen, the second analysis we'll do today. You can get this file on the shared Google Drive: BGP_Data_Share. You'll get the one specific for WIWA (not HETH).
+
+```{r}
+breeding <- st_read("data/genoscape_map/COYE.breed_season.sf.WGS84.Ebird.shp")
+
+```
+We may or may not look at shapefile. It's quite large, so it's commented out now.
+
+```{r}
+#plot(breeding)
+```
+
+## Population assignment using rubias
+
+Rubias is an R software program that probabilistically assigns individuals to specific reporting units (i.e. genetic clusters diagnosed in the breeding region). Originally used for fish stock identification, we've co-opted it for bird genoscapes! I've attached the two rubias files you'll need. The known breeder genotypes and the genotypes of the migrating birds. Note, since we don't know where the migrating birds are coming from, we consider them unknown and we are going to use rubias to estimate mixing proportions and probability of assignment to their breeding origin. Thus, we consider the unknown birds a potential mixture of individuals from distinct genetic clusters.
+
+Read in this data, and double check that it doesn't have an extra column for whatever reason at the end. 
+
+```{r}
+coye_mix2 <- read.delim("WIWA.FinalPanel.GP1_3.fixed.rubias_input2.txt",sep="\t") %>% distinct()
+
+wiwa_mix_final <- wiwa_mix2 %>% mutate_if(is.factor, as.character)
+#str(heth_mix_final)
+```
+
+Use the code below to see how many migrating indivdiuals we were able to successfully genotype. Does this look right to you?
+```{r}
+dim(wiwa_mix_final)
+```
+
+Read in the reference file, and make sure all fields are correct type. 
+```{r}
+coye_ref2 <- read.delim("data/indiv_assigment/coye.rm_miss10.breeders.Fluidigm.rubias_input.txt",sep="\t",header=T) %>% distinct()
+#str(heth_ref_final)
+coye_ref_final <- coye_ref2 %>% mutate_if(is.factor, as.character)
+
+```
+
+```{r}
+dim(coye_ref_final)
+```
+
+To perform genetic mixing and assignment tests, we use the _infer_mixture function_ in rubias. Our data consists of fish caught in one banding station as denoted as just "mixture" in the collection column. This is how it is run with the default options:
+```{r}
+mix_estC <- infer_mixture(reference = wiwa_ref_final, mixture = wiwa_mix_final, gen_start_col = 5)
+```
+
+The result comes back as a list of four tidy data frames:
+
+1. mixing_proportions: the mixing proportions. The column pi holds the estimated mixing proportion for each collection.
+
+2. indiv_posteriors: this holds, for each individual, the posterior means of group membership in each collection. Column PofZ holds those values. Column log_likelihood holds the log of the probability of the individuals genotype given it is from the collection. Also included are n_non_miss_loci and n_miss_loci which are the number of observed loci and the number of missing loci at the individual. A list column missing_loci contains vectors with the indices (and the names) of the loci that are missing in that individual. It also includes a column z_score which can be used to diagnose fish that don’t belong to any samples in the reference data base (see below).
+
+3. mix_prop_traces: MCMC traces of the mixing proportions for each collection. You will use these if you want to make density estimates of the posterior distribution of the mixing proportions or if you want to compute credible intervals.
+
+4. bootstrapped_proportions: This is NULL in the above example, but if we had chosen method = "PB" then this would be a tibble of bootstrap-corrected reporting unit mixing proportions.
+
+What we are most interested in is the individual posteriors. We can look at the number of individuals assigned to different genetic clusters and associate those individuals to the meta data we have on them: location (MAPS site) and timing (Month,Day,Year).
+```{r}
+library(gdata)
+install.packages("xlsx")
+library(xlsx)
+#ext<-read.xls("~/Dropbox/BGP/WIWA/Fluidigm_genotypes/meta_Genaro_samples/WIWA_master.xlsx",sheet=2) %>% rename(indiv=BGP.ID.)
+ex2<-read.xls("~/Dropbox/BGP/WIWA/Fluidigm_genotypes/meta_Genaro_samples/10_18_2021 SNP GT for Genaro.xlsx",sheet=3) %>% rename(indiv=BGP.ID.,CollectionNumber=Band..) %>% dplyr::select(-Species,-State)
+
+meta2<-read.xlsx("~/Dropbox/BGP/WIWA/Fluidigm_genotypes/meta_Genaro_samples/BGP_EXPORT_2021_05_MASTERfixLatLong.xlsx",sheetName = "WIWA",stringsAsFactors = F) 
+
+wiwa_mix_final_ind<-wiwa_mix_final %>% select(indiv)
+
+metaM<-wiwa_mix_final_ind %>% left_join(ex2) %>% left_join(meta2) %>% dplyr::select(-c(X:X.13, NA.:NA..11))
+
+metaM %>% write.table("~/Dropbox/BGP/WIWA/Fluidigm_genotypes/meta_Genaro_samples/WIWA.Genaro_samples.Master_meta.txt",row.names = F,quote=F,sep="\t")
+
+metaM<-read_delim("~/Dropbox/BGP/WIWA/Fluidigm_genotypes/meta_Genaro_samples/WIWA.Genaro_samples.Master_meta.txt",delim="\t")
+
+coord<-metaM %>% filter(indiv %in% wiwa_mix_final$indiv) %>% dplyr::select(indiv,State,Latitude,Longitude)
+
+summary(mix_estC)
+rep_indiv_estsC <- mix_estC$indiv_posteriors %>% group_by(mixture_collection, indiv, repunit) %>% summarise(rep_pofz = sum(PofZ)) %>% left_join(coord) %>% dplyr::select(mixture_collection,indiv,repunit,rep_pofz, everything()) %>% distinct()
+
+
+rep_indiv_estsC %>% write.table("~/Dropbox/BGP/WIWA/Fluidigm_genotypes/WIWA.Genaro_metadata_repunit_rep_pofz.txt",row.names=F,quote=F,sep="\t")
+rep_indiv_estsC 
+```
+
+What you can see is that each individual has 5 rows, associated with probability of assignment to a repunit (Eastern Taiga, Interior West, Pacific Central, Pacific North, and Pacific South). 
+
+
+##Puts this in a more readable format
+The above format is a little hard to read, so instead, we are going to use the code below to spread the data- make it so each individual is on one row and the probability of assignment is spread across 5 new columns representing the repunit. The first part writes it to a file, but I want you to look at the output too.
+```{r}
+spread(data=rep_indiv_estsC,repunit,rep_pofz) %>% dplyr::select(indiv,mixture_collection,State,AK2Alberta,CoastalCA,Eastern,PacNorthwest,RockyMtn,Sierra,Latitude,Longitude) %>% write.table('~/Dropbox/BGP/WIWA/Fluidigm_genotypes/WIWA.Genaro_metadata_repunit_spread.txt',quote=F,sep="\t",row.names=F)
+
+spread(data=rep_indiv_estsC,repunit,rep_pofz) %>% dplyr::select(indiv,mixture_collection,State,AK2Alberta,CoastalCA,Eastern,PacNorthwest,RockyMtn,Sierra,Latitude,Longitude)
+```
+Read in the data, and rather than having probability of assignment, let's first look at the individuals that are assigned to certain genetic clusters with highest probability- so with certainty. To do that, we say if probability of assignment is greater than 80%, let's call that 1, if not, 0, and then we filter only keeping those individuals with certain assignment using "filter(sum=1)".
+
+
+```{r}
+#AK2Alberta,CoastalCA,Eastern,PacNorthwest,RockyMtn,Sierra
+read_delim("~/Dropbox/BGP/WIWA/Fluidigm_genotypes/WIWA.Genaro_metadata_repunit_spread.txt",delim="\t") %>% 
+  mutate(AK2Alberta=if_else(AK2Alberta >.8,1,0)) %>% 
+  mutate(CoastalCA=if_else(CoastalCA >.8,1,0)) %>%
+  mutate(Eastern=if_else(Eastern>.8,1,0)) %>% 
+  mutate(PacNorthwest=if_else(PacNorthwest>.8,1,0)) %>% 
+  mutate(RockyMtn=if_else(RockyMtn>.8,1,0)) %>% 
+  mutate(Sierra=if_else(Sierra>.8,1,0)) %>% 
+  mutate(sum=AK2Alberta+CoastalCA+Eastern+PacNorthwest+RockyMtn+Sierra) %>% 
+  filter(sum==1) %>% 
+  mutate(assignment=if_else(AK2Alberta==1,"AK2Alberta",if_else(CoastalCA==1,"CoastalCA",if_else(Eastern==1,"Eastern",if_else(PacNorthwest==1,"PacNorthwest",if_else(RockyMtn==1,"RockyMtn",if_else(Sierra==1,"Sierra","notcertrain"))))))) %>% 
+  dplyr::select(indiv,mixture_collection,AK2Alberta:Sierra,assignment,State,Latitude,Longitude) %>% write.table("~/Dropbox/BGP/WIWA/Fluidigm_genotypes/WIWA.Genaro_metadata_withAssignments01.txt",quote=F,sep="\t",row.names=F)
+
+#Tallies the birds that are certain
+assign01<-read_delim("~/Dropbox/BGP/WIWA/Fluidigm_genotypes/WIWA.Genaro_metadata_withAssignments01.txt",delim="\t") 
+assign01 %>% group_by(assignment) %>% tally()
+```
+__How many individuals were assigned with certainty to each distinct genetic cluster?__
+
+__How many individuals were not assigned with certainty? And what was their probaiblity for each genetic cluster?__
+
+
+Use the code below to answer this question:
+```{r}
+`%notin%` <- Negate(`%in%`)
+
+uncertain<-read_delim("~/Dropbox/BGP/WIWA/Fluidigm_genotypes/WIWA.Genaro_metadata_repunit_spread.txt",delim="\t") %>% filter(indiv %notin% assign01$indiv)
+uncertain
+```
+
+Now you have the data you need. Think about how you would break up this data. 
+
+1) Population migration timing (break up by week)
+2) Did populations migrate differently before and after fire
+3) There are 3 sites, are there differences among those sites?
+
+I'm going to create one pie plot and place it on a map, for illustration purposes. Alter this at will for what you want to present
+
+```{r}
+filt<-read_delim("HETH_metadata_repunit_spread.txt",delim="\t") %>% 
+  mutate(EasternTaiga=if_else(EasternTaiga >.8,1,0)) %>% 
+  mutate(InteriorWest=if_else(InteriorWest >.8,1,0)) %>%
+  mutate(PacificCentral=if_else(PacificCentral>.8,1,0)) %>% 
+  mutate(PacificNorth=if_else(PacificNorth>.8,1,0)) %>% 
+  mutate(PacificSouth=if_else(PacificSouth>.8,1,0)) %>% 
+  mutate(sum=EasternTaiga+InteriorWest+PacificCentral+PacificNorth+PacificSouth) %>% 
+  filter(sum==1) %>% 
+  mutate(assignment=if_else(EasternTaiga==1,"EasternTaiga",if_else(InteriorWest==1,"InteriorWest",if_else(PacificCentral==1,"PacificCentral",if_else(PacificNorth==1,"PacificNorth","PacificSouth"))))) %>% 
+  dplyr::select(indiv,mixture_collection,EasternTaiga:PacificSouth,assignment,State,MAPS.Code,Year,Month,Day,Lat,Long) %>% 
+  group_by(MAPS.Code) %>% 
+  summarise(EasternTaiga=sum(EasternTaiga),InteriorWest=sum(InteriorWest),PacificCentral=sum(PacificCentral),PacificNorth=sum(PacificNorth),PacificSouth=sum(PacificSouth),meanLat=mean(Lat),meanLong=mean(Long))
+
+filt
+```
+
+Now we are reading in a world map, and cropping it to just Southwest region where the samples were collected
+
+```{r}
+library("rnaturalearth")
+library("rnaturalearthdata")
+library("scatterpie")
+
+world <- ne_countries(scale='medium',returnclass = 'sf')
+class(world)
+NorthAmerica<-world %>% filter(region_wb=="North America")
+
+NA.pie_map <- ggplot(data = NorthAmerica) +
+  geom_sf(aes(fill = NULL)) +
+  theme(panel.background = element_rect(fill = NA),
+     panel.border = element_rect(fill = NA))+
+  coord_sf(xlim=c(-127, -90),ylim=c(25,50))+
+  geom_scatterpie(data = filt, 
+                  aes(meanLong, meanLat, r = .5),
+                  cols = c("EasternTaiga", "InteriorWest", "PacificCentral", "PacificNorth","PacificSouth"), 
+                  alpha = 0.9) +
+  scale_fill_manual(
+    breaks = c("EasternTaiga", "InteriorWest", "PacificCentral", "PacificNorth","PacificSouth"),
+    labels = c("EasternTaiga", "InteriorWest", "PacificCentral", "PacificNorth","PacificSouth"),
+    values = c("EasternTaiga" = "blue",
+               "InteriorWest" = "orange",
+               "PacificCentral" = "red",
+               "PacificNorth" = "green4",
+               "PacificSouth" = "pink")) +
+  geom_text(data = filt, 
+            aes(meanLong, meanLat, label=MAPS.Code))+
+  labs(title = "HETH Rubias Assignment of 1 site",
+       fill = NULL) +
+  theme_bw() +
+  theme(legend.position = c(.99, 0.55),
+        legend.justification = c(1, 0),
+        panel.grid = element_blank(),
+        axis.title = element_blank()) 
+NA.pie_map
+
+```
+#### Breeding Bird Shapefile is needed for OriGen
+
+Finally, we need to have a GIS Shapefile that tells us the range of the breeding birds, so that genoscape can be clipped properly.  We read this shapefile with the 
+`st_read()` function from package `sf`. 
+See code below. This also comes in handy for looking at probabilty of spatial assignment in Origen, the second analysis we'll do today.
+
+```{r}
+library(rmapshaper)
+breeding <- st_read("~/Dropbox/BGP/genoscape_maps/shapefiles/newhethbreeding/HETHbreedingrange.shp")
+#breedE<- rmapshaper::ms_simplify(input = as(breeding, 'Spatial')) %>%
+# st_as_sf()
+#breedE<-st_transform(breedE, crs = 4326)
+
+```
+
+##Run Origen to get predicted Lat/Long of each individual. 
+While rubias assigns to a distinct genetic cluster, we might want to know actual locations. Moreover, having the lat/long of each individual allows us to include those intermediate individuals as those might have intermediate locations.
+
+Here you have to input 5 data files. The ped and map file for breeders, with an associated location file (Sample, lat and long), and the ped and map file for the unknown migrating birds
+
+```{r}
+library(gdata)
+setwd("~/Dropbox/BGP/BZ525_Fall21/HETH_4assays/")
+list.files()
+hethOri<-ConvertUnknownPEDData("HETH.breeding.4Origen","HETH.breeding.4Origen.loc","HETH.migrating.4Origen")
+
+ind<-read_delim("HETH.migrating.4Origen.ped",delim="\t",col_names = F) %>% dplyr::select(X2) %>% rename(Sample=X2)
+
+#Read in migrating bird meta information
+migr_meta<-read.xls("Bandelier HETH:WIWA Feathers 2017-2020.xlsx") %>% rename(Sample=Field..)
+
+met_allM<-ind %>% left_join(migr_meta) 
+
+#Read in breeding locations
+breed_loc<-read_delim("HETH.breeding.4Origen.loc",delim="\t")
+breed_meta<-read_csv("HETH.breeding.meta.final_fixed.csv")
+breed_meta2<-breed_loc %>% left_join(breed_meta)
+breed_meta2
+```
+
+To run Origen, we are going to use the FitOriGenModelFindUnknowns model. You can play around with the MaxGridLength to adjust the size of pixels/grids you can pinpoint the breeding origin locaiton of the migrating birds.
+```{r}
+#MaxGridLength is the maximum number of boxes allowed to span the region in either direction
+#RhoParameter is a tuning constant
+
+OrigenP<-FitOriGenModelFindUnknowns(hethOri$DataArray,hethOri$SampleCoordinates,hethOri$UnknownData,MaxGridLength=70,RhoParameter=10)
+summary(OrigenP)
+OrigenP$SampleSites
+```
+
+__Printed to the screen is the number of loci and number of sites associated with the breeding birds. What are these numbers?__
+
+Let's look at the allele frequency across several loci in space. 
+```{r}
+#Fitting the model
+#MaxGridLength is the maximum number of boxes allowed to span the region in either direction
+#RhoParameter is a tuning constant
+trials2=FitMultinomialModel(hethOri$DataArray,hethOri$SampleCoordinates,MaxGridLength=70,RhoParameter=10)
+str(trials2)
+#Plotting the model
+PlotAlleleFrequencySurface(trials2,LocusNumber=2,AlleleNumber=1,MaskWater=TRUE,Scale=FALSE)
+
+```
+Here, we are just taking the breeding shapefile, and we are only going to keep the lat/longs that have the highest probability if they fall within the breeding raster. They should normally, you'll see them fall near where we have sampling localities, but this makes sure this is the case.
+```{r}
+library(detectRUNS)
+citation("detectRUNS")
+#convert the geometry of the sf to spatial polygons
+breedE_spd1<-sf::as_Spatial(st_geometry(breeding),IDs=as.character(1:nrow(breeding)))
+
+#grab data from sf object
+df<-breeding
+df$geometry<-NULL
+df<-as.data.frame(df)
+
+#create teh spatialpolygon data fram
+breedE_spd<-sp::SpatialPolygonsDataFrame(breedE_spd1,data=df)
+
+
+#now try to subset grid
+grid <- expand.grid(OrigenP$GridCoordinates[1,],OrigenP$GridCoordinates[2,])
+grid <- grid[grid$Var2!=0,]
+names(grid) <- c("x","y")
+pts <- SpatialPointsDataFrame(grid[,c(1,2)],data=grid[,c(2,1)],proj4string=attributes(breedE_spd)$proj4string)
+overlap <- sp::over(pts,as(breedE_spd,"SpatialPolygons"))
+subgrid <- grid[!is.na(overlap),]
+subgrid$xind <- match(subgrid$x,OrigenP$GridCoordinates[1,])
+subgrid$yind <- match(subgrid$y,OrigenP$GridCoordinates[2,])
+
+subgrid
+
+for (i in 1:nrow(hethOri$UnknownData)) {
+  myGrid2 <- OrigenP$UnknownGrids[,,i]
+  for (j in 1:nrow(subgrid)) {
+    subgrid[j,i+4] <- myGrid2[subgrid$xind[j],subgrid$yind[j]]
+  }
+}
+```
+
+This aligns the the data with the uknonwn migrating bird names, and writes out the data so you don't have to run this analysis each time. If you ever need to come back to the data, just read in the RDS file.
+```{r}
+#POPID,  migrating birds
+pedM<-read_delim("HETH.migrating.4Origen.ped",delim="\t",col_names = F) %>% rename(Sample=X2)
+
+meta_allM<-pedM %>% left_join(migr_meta) %>% distinct()
+
+names(subgrid) <- c("x","y","xind","yind",as.character(pedM$Sample))
+saveRDS(subgrid,"HETH_OriGen_ProbSurface.Migr.POPID.rds")
+
+rds<-readRDS("HETH_OriGen_ProbSurface.Migr.POPID.rds")
+rds
+```
+
+Each row is associated with a lat/long and each indivdiual has a probability of being assigned to that lat/long. In this code chunk, we are chossing the lat/long with the highest probability.
+```{r}
+write.table(rds, "HETH_OriGen_ProbSurface.Migr.POPID.txt", quote = F, sep="\t", row.names = F)
+
+df_rds<-read_delim("HETH_OriGen_ProbSurface.Migr.POPID.txt",delim="\t") 
+
+#column where individual starts
+for (j in 5:ncol(df_rds))
+{
+  i <- max(df_rds[,j],na.rm=T) 
+  k<-df_rds[which(df_rds[,j] == i), c(1,2,j)] 
+  write.table(k,file="HETH_OriGen_ProbSurface.Migr.POPID.highestprob_origen.final2.txt",row.names=F,quote=F,sep="\t",append=T,col.names=F)
+}
+
+##read in the file you just created. 
+pred<-read_delim("HETH_OriGen_ProbSurface.Migr.POPID.highestprob_origen.final2.txt",delim="\t",col_names = F) %>% rename(predLong=X1,predLat=X2,highprob=X3)
+dim(pred)
+##There are no sample names attached to it, BUT it is in the order of the meta data for the migrating birds (aka the order of the ped file), so we are adding those sample names to the file and writing out the data.
+out<-cbind(meta_allM,pred)
+saveRDS(out,"HETH_OriGen_ProbSurface.Migr.POPID.predlatlong_only.clipped.rds")
+
+```
+
+Now let's calculate the distance for each bird. From the place where it was captured, to the place it was predicted to come from.
+```{r}
+##Create matrix
+out<-readRDS("HETH_OriGen_ProbSurface.Migr.POPID.predlatlong_only.clipped.rds")
+mat <- distm(out[,c('predLong','predLat')], out[,c('Long','Lat')], fun=distHaversine)
+colnames(mat) <- out$Sample
+rownames(mat) <- out$Sample
+
+dist<-melt(mat) %>% filter(Var1==Var2) %>% rename(Sample=Var1) %>% left_join(out) %>% 
+  mutate(km=value/1000) %>% distinct()
+
+dist %>% dplyr::select(Sample,value,Age:km) %>% write.table("HETH_OriGen.Predlatlong_only.clipped.txt",row.names=F,quote=F,sep="\t")
+dist %>% dplyr::select(Sample,value,Age:km)
+```
+
+Let's plot the probabilities of each lat/long location. We can see which ones have extremely low probabilities and potentially filter out those.
+```{r}
+pdf("HETH.highprob_Origen.hist.pdf")
+g<-gghistogram(dist, x = "highprob",
+            add = "mean", rug = TRUE,
+            palette = "Dark2",bins=60)+theme(aspect.ratio = 1)
+dev.off()
+
+g
+
+dist %>% filter(highprob>0.1) %>% gghistogram(x = "highprob",
+            add = "mean", rug = TRUE,
+            palette = "Dark2",bins=60)+theme(aspect.ratio = 1)
+```
+__Looking at the distribution of probabilities in the histogram above, how might you filter out individuals from the Origen analysis?__
+
+
+
+How let's look at distance, by month.
+```{r}
+pdf("HETH.highprob_dist.hist.pdf")
+d<-gghistogram(dist, x = "km",
+            add = "mean", rug = TRUE,
+            color = "Month", fill = "Month",
+            palette = "Dark2",bins=10)+theme(aspect.ratio = 1)
+dev.off()
+d
+```
+__Maybe histogram isn't the best way to look at the data. How would you like to look at distance given time? If you have time, use a ggplot2 cheatsheet to create a new plot that looks at whether there's a difference in distance given time of migration. Aka are birds migrating through NM earlier coming from closer locations?__
+
+```{r}
+dist %>% ggplot() + geom_boxplot(aes(x = Month,y= km, fill = Month))+
+  theme(aspect.ratio = 1) +theme_bw()
+
+```
+##Plot Origen results on an overly simplified map
+
+Here we are using rnatural earth data to create a map and plot the distance to the breeding origin of migrating birds. First, a simple map of the world. No bells and whistles (aka rivers and terrain).
+```{r}
+world <- ne_countries(scale='medium',returnclass = 'sf')
+class(world)
+NorthAmerica<-world %>% filter(region_wb=="North America")
+
+gworld <- ggplot(data = NorthAmerica) +
+  geom_sf(aes(fill = NULL)) +
+  geom_spatial_point(data=breed_meta2,aes(x=Long,y=Lat,shape=GeneticCluster_Fluidigm))+
+  #geom_rect(xmin = -102.15, xmax = -74.12, ymin = 7.65, ymax = 33.97, 
+     #fill = NA, colour = "black", size = 1.5) +
+  #scale_fill_viridis_d(option = "plasma") +
+  theme(panel.background = element_rect(fill = NA),
+     panel.border = element_rect(fill = NA))+
+  coord_sf(xlim=c(-175, -50),ylim=c(25,75))+
+  scale_shape_manual(values=c(19, 17, 15, 23, 18))
+gworld
+
+```
+
+
+```{r}
+Ori_result<-readRDS("HETH_OriGen_ProbSurface.Migr.POPID.predlatlong_only.clipped.rds") %>% rename(indiv=Sample) 
+
+ori_rub<-Ori_result %>% left_join(assign01) %>% dplyr::select(indiv,City.Town:assignment)
+
+mult.cols <- brewer.pal(n = 9, name = "YlGnBu")[c(3:9)]
+map_predOriGen <-gworld  + 
+  geom_spatial_point(data = ori_rub, mapping = aes(x = Long, y = Lat, color=Month),size = 1.5, stroke=0.1,position = position_jitter(width = 8e04, height = 8e04)) +
+ # ggspatial::layer_spatial(breedE_spd1)  +
+  geom_spatial_segment(data = Ori_result, mapping = aes(x = Long, y = Lat, xend = predLong, yend = predLat,col=Month),size = .5, alpha = 0.8,lineend= "round") +
+  scale_colour_manual(values=mult.cols) 
+
+
+pdf("PABU.mapOriGenMIGR.PredLatLong.POPID.colorSeg.pdf")
+map_predOriGen
+dev.off()
+map_predOriGen
+```
+
+__Does the predicted lat/long match up with the rubias assignment? If you can't tell from this image, what would you add to determine concordance between analyses?__
+
+
+__What further questions do you want to answer with the data?__
