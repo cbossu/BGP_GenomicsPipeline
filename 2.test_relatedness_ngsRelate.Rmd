@@ -1,0 +1,63 @@
+---
+title: "ngsRelate"
+author: "Christen Bossu"
+date: "6/6/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Testing relatedness
+
+One reason high covariance among individuals can happen is relatedness. To test relatedness among the indivdiuals, to confirm the removal of those indivdials from subsequent analyses, I use ngsRelate in the terminal.
+
+Here, define the path to your ngsRelate software program, which you can git here:
+
+https://github.com/ANGSD/NgsRelate
+
+
+```
+NGSRELATE="/ocean/projects/bio210095p/cbossu/programs/ngsRelate/ngsRelate"
+```
+
+You can use this on a glf file from ANGSD or the vcf file you used in the previous analysis. These have very different codes, and the vcf one is below.
+
+By default, NgsRelate will estimate the allele frequencies using the individuals provided in the VCF files.
+
+```
+$NGSRELATE/ngsRelate -h data/ngsRelate_data/COYEP1-4c.merged_gatk.srs_filt.subset.recode.vcf -z data/test.ind -O output_files/ngsRelate_results/COYEP1-4c.merged_gatk.srs_filt.subset.recode.vcf.ngsRelate.res -T GT -c 1
+```
+
+##Related plots
+So you will need to do some adjusting of the file to then get it into R for plotting. Basically you added the the individual with teh -z function above, but now you need to add the region/location for each individual.
+```{r}
+meta<-read.xls("data/srs_data/COYE_master_Updated06062022.xlsx",sheet=3) %>% dplyr::select(Sample_data,State) %>% rename(Sample=Sample_data,Region_site=State)
+
+relSC<-read_delim("output_files/ngsRelate_results/COYEP1-4c.merged_gatk.srs_filt.subset.recode.vcf.ngsRelate.res",delim="\t") %>%  
+  rename(IndA=inda,IndB=indb) %>% 
+  dplyr::select(IndA,IndB,everything())
+
+RegA<-relSC %>% dplyr::select(IndA) %>% rename(Sample=IndA) %>% left_join(meta) %>% rename(RegionA=State)
+RegB<-relSC %>% dplyr::select(IndB) %>% rename(Sample=IndB) %>% left_join(meta) %>% rename(RegionB=State)
+
+relSC_dat<-relSC %>% left_join(RegA) %>% left_join(RegB) %>% 
+  unite("Pair",IndA:IndB,sep="_",remove=F) %>%
+  mutate(RegionBoth=if_else(RegionA==RegionB,RegionA,"mixture")) %>%
+  dplyr::select(-X12,-X13)
+relSC %>% distinct(RegionBoth)
+```
+
+```{r}
+library(ggpubr)
+g<-relSC_dat  %>% 
+  ggplot(aes(K0,K1,col=RegionBoth))+geom_point(size=2,alpha=0.8) +scale_colour_manual(values=colors) + theme_bw() +theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + geom_text(aes(label=Pair),hjust=-0.1, vjust=0,size=2) + theme(aspect.ratio = 1)
+
+pdf("COYE.NGSrelate.k0_k1.plot.RegionA.labelPair.pdf",useDingbats = F)
+ggarrange(g,
+          labels = c("A.  "),
+          ncol = 2, nrow = 2)
+dev.off()
+
+```

@@ -20,9 +20,14 @@ module load vcftools
 vcftools --vcf COYEP1-4c.merged_gatk.srs_filt.vcf --out COYEP1-4c.merged_gatk.srs_filt.75. --recode --maf 0.05 --max-maf 0.95 --min-alleles 2 --max-alleles 2 --max-missing 0.5 
 ```
 
-Get allele depths for 4,019,279 sites of 15464410 sites using bcftools
+Get allele depths for your filtered vcf file. Here, because that's too large, the trial file will allow us to get 50,000 sites of the 15464410 sites using bcftools. For all data, just remove the 
+
+`head -500001` 
+
+line
+
 ```
-bcftools query -f '%CHROM\t%POS[\t%AD]\n' COYEP1-4c.merged_gatk.srs_filt.vcf > COYEP1_P4c.allele_depths.txt
+bcftools query -f '%CHROM\t%POS[\t%AD]\n' COYEP1-4c.merged_gatk.srs_filt.75.vcf|head -50001 > COYEP1_P4c.allele_depths.subset.txt
 ```
 
 ## Covariance analysis
@@ -38,23 +43,22 @@ library(RColorBrewer)
 
 Next specify the files with the individual names and the allele depth file
 ```{r}
-snames <- read_lines("data/test.ind")
+snames <- read_lines("data/srs/test.ind")
 
-AllCOYE<-srs_covar(file="data/COYEP1_4c.allele_depths.subset.txt", sample_names=snames, freq_thresh = 0)
-saveRDS(AllCOYE, "data/COYE.srs_filtered.202ind.srs.subset.rds")
-AllCOYE <- readRDS("data/COYE.srs_filtered.202ind.srs.subset.rds")
+AllCOYE<-srs_covar(file="data/srs/COYEP1_4c.allele_depths.subset.txt", sample_names=snames, freq_thresh = 0)
+saveRDS(AllCOYE, "data/srs/COYE.srs_filtered.202ind.srs.subset.rds")
+AllCOYE <- readRDS("data/srs/COYE.srs_filtered.202ind.srs.subset.rds")
 ```
 
 Incorporate the meta data
 ```{r}
-meta<-read.xls("data/COYE_master_Updated06062022.xlsx",sheet=3) %>% dplyr::select(Sample_data,State,Location) %>% rename(vcf_name=Sample_data,Region_site=State,Region_pop=Location) %>% filter(vcf_name %in% AllCOYE$sample_names) %>% distinct() %>% filter(Region_site!="NA") %>% arrange(Region_site,vcf_name)
+meta<-read.xls("data/srs/COYE_master_Updated06062022.xlsx",sheet=3) %>% dplyr::select(Sample_data,State,Location) %>% rename(vcf_name=Sample_data,Region_site=State,Region_pop=Location) %>% filter(vcf_name %in% AllCOYE$sample_names) %>% distinct() %>% filter(Region_site!="NA") %>% arrange(Region_site,vcf_name)
 dim(meta)
 meta %>% distinct(Region_site)
 ```
 
+Next to create the covariance matrix.
 
-
-Next to create the covariance matrix
 # A function from Eric to get everything prepped and tidy
 ```{r}
 prep_output <- function(A) {
@@ -123,7 +127,8 @@ prep_output <- function(A) {
 }
 ```
 
-##BUOW Breeding Site Analysis
+##COYE Breeding Site Analysis
+This puts the sites in order and allows you the pick a color for the groupings using RColorBrewer palettes.
 ```{r}
 breedingCOYE.prep <- prep_output(AllCOYE) #%>%
   #filter(Region_pop == "Breeding")
@@ -203,7 +208,7 @@ ggsave(g, filename = "plots/srs_plots/coye-50missing-covar-and-M-facets.pdf",
 ```
 
 ##Create table to individuals to remove.
-Santa Clara birds should be on there due to relatedness, but are there others that I might not have removed before? Choose the covariance cut off that works for your data.
+First, choose the covariance cut off that works for your data. Then look at the clustering, does it make sense (are indvidiuals with high covariance from the same population?).
 
 ```{r}
 outlier_CM_cut <- CM_cut %>% 
@@ -268,7 +273,7 @@ keep.these <- c("MOR_12",
                    "16N0012",
                    "98N2078")
 
-#Keep these for cov group > 0.25
+#Keep these for cov group > 0.27
 keep.these <- c("MOR_12",
                    "17N02622",
                    "16N0005",

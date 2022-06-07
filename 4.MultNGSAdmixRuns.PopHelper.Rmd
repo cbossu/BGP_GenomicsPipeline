@@ -1,0 +1,110 @@
+---
+title: "PopHelper_Structure.Rmd"
+author: "Christen Bossu"
+date: "12/17/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## PopHelper
+
+Install these packages once
+```{r}
+#install.packages(c("Cairo","devtools","ggplot2","gridExtra","gtable","tidyr"),dependencies=T)
+
+# Install the current version of pophelper
+#devtools::install_github('royfrancis/pophelper')
+```
+
+##Load the libraries
+```{r}
+# load library
+library(tidyverse)
+library(pophelper)
+
+# check version
+packageDescription("pophelper", fields="Version")
+```
+
+The next step is to set the working directory. The working directory is a folder that usually contains the run files of interest so as to allow R to access it. The working directory must have read-write-execute permissions. Functions may produce outputs such as text files or images which will be exported to the working directory. The working directory can be set by running the command below using a path or by selecting the folder interactively in the popup window.
+```{r}
+setwd("~/Documents/CurrentProjects/CSU_UCLA/BGP/HETH/admixture_rmcont/")
+# file is located in the current working directory. use full filename.
+
+sfiles <- c("HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run1.1.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run2.1.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run3.1.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run4.1.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run5.1.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run1.2.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run2.2.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run3.2.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run4.2.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run5.2.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run1.3.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run2.3.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run3.3.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run4.3.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run5.3.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run1.4.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run2.4.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run3.4.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run4.4.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run5.4.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run1.5.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run2.5.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run3.5.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run4.5.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run5.5.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run1.6.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run2.6.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run3.6.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run4.6.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run5.6.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run1.7.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run2.7.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run3.7.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run4.7.Q","HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run5.7.Q")
+# basic usage
+slist <- readQ(files=sfiles,filetype="basic",indlabfromfile=F)
+# select files interactively
+# readQ(files=choose.files(multi=TRUE))
+# check class of ouput
+class(slist)
+# view head of first converted file
+head(slist[[1]])
+attributes(slist)
+
+head(tabulateQ(slist),writetable=T)
+??tabulateQ
+```
+```{r}
+summariseQ(tabulateQ(slist),writetable=T)
+```
+```{r}
+library(gridExtra)
+#The rownames of ‘qlist’ can also be modified by the user by adding custom individual labels.
+inds <- read.delim("~/Documents/CurrentProjects/CSU_UCLA/BGP/HETH/HETH.all.clean.hethv0.rm_hets.rmrel.ind",header=FALSE,stringsAsFactors=F)
+dim(inds)
+# add indlab to one run
+rownames(slist[[1]]) <- inds$V1
+# if all runs are equal length, add indlab to all runs
+if(length(unique(sapply(slist,nrow)))==1) slist <- lapply(slist,"rownames<-",inds$V1)
+# show row names of all runs and all samples
+lapply(slist, rownames)
+
+??analyseQ
+analyseQ(files=sfiles)
+
+```
+
+Can't do Evanno method as it's specifically for Structure analyses
+```
+evannoMethodStructure
+
+```
+
+```{r}
+slist[1]
+StateLabel <- read.csv("~/Documents/CurrentProjects/UCLA_UCSC/BGP/HETH/HETH.Plate1_4.meta.final_fixed.csv",header=T,stringsAsFactors=F) %>% dplyr::select(Sample,ClimGroup,MapNum) %>% filter(Sample %in% row.names(slist[1]$`HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run1.1.Q`)) 
+State.order<-StateLabel[match(rownames(slist[1]$`HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.chr1.run1.1.Q`), StateLabel$Sample), ] %>% dplyr::select(ClimGroup,MapNum,Sample) 
+State.order %>% distinct()
+nrow(State.order)
+sapply(State.order, is.character)
+Region <- State.order[,1,drop=FALSE]
+nrow(Region)
+Region %>% distinct()
+
+p2rm<-plotQ(alignK(slist[c(6,7,8,9,10)]),imgoutput="join",grplab=Region,returnplot=T,exportplot=F,subsetgrp=c("NM1","AZ3","AZ1","AZ4","AZ2","UT1","Yosemite","CA1","CA2","CA3","AK1","AK3","HaidaGwaii","AK2","AK4","PrinceRupert", "Exstew", "Kispiox", "Whistler", "Golden","Maxan","FortFraser","MacKenzie","Hudson'sHope","Swan","PA1","ME2"),ordergrp=T,grplabsize=1,linesize=0.5,pointsize=2,grplabangle=90,grplabheight = 14)
+
+p3rm<-plotQ(alignK(slist[c(11,12,13,14,15)]),imgoutput="join",grplab=Region,returnplot=T,exportplot=F,subsetgrp=c("NM1","AZ3","AZ1","AZ4","AZ2","UT1","Yosemite","CA1","CA2","CA3","AK1","AK3","HaidaGwaii","AK2","AK4","PrinceRupert", "Exstew", "Kispiox", "Whistler", "Golden","Maxan","FortFraser","MacKenzie","Hudson'sHope","Swan","PA1","ME2"),ordergrp=T,grplabsize=1,linesize=0.5,pointsize=2,grplabangle=90,grplabheight = 14)
+
+p4rm<-plotQ(alignK(slist[c(16,17,18,19,20)]),imgoutput="join",grplab=Region,returnplot=T,exportplot=F,subsetgrp=c("NM1","AZ3","AZ1","AZ4","AZ2","UT1","Yosemite","CA1","CA2","CA3","AK1","AK3","HaidaGwaii","AK2","AK4","PrinceRupert", "Exstew", "Kispiox", "Whistler", "Golden","Maxan","FortFraser","MacKenzie","Hudson'sHope","Swan","PA1","ME2"),ordergrp=T,grplabsize=1,linesize=0.5,pointsize=2,grplabangle=90,grplabheight = 14)
+
+p5rm<-plotQ(alignK(slist[c(21,22,23,24,25)]),imgoutput="join",grplab=Region,returnplot=T,exportplot=F,subsetgrp=c("NM1","AZ3","AZ1","AZ4","AZ2","UT1","Yosemite","CA1","CA2","CA3","AK1","AK3","HaidaGwaii","AK2","AK4","PrinceRupert", "Exstew", "Kispiox", "Whistler", "Golden","Maxan","FortFraser","MacKenzie","Hudson'sHope","Swan","PA1","ME2"),ordergrp=T,grplabsize=1,linesize=0.5,pointsize=2,grplabangle=90,grplabheight = 14)
+
+p6rm<-plotQ(alignK(slist[c(26,27,28,29,30)]),imgoutput="join",grplab=Region,returnplot=T,exportplot=F,subsetgrp=c("NM1","AZ3","AZ1","AZ4","AZ2","UT1","Yosemite","CA1","CA2","CA3","AK1","AK3","HaidaGwaii","AK2","AK4","PrinceRupert", "Exstew", "Kispiox", "Whistler", "Golden","Maxan","FortFraser","MacKenzie","Hudson'sHope","Swan","PA1","ME2"),ordergrp=T,grplabsize=1,linesize=0.5,pointsize=2,grplabangle=90,grplabheight = 14)
+
+p7rm<-plotQ(alignK(slist[c(31,32,33,34,35)]),imgoutput="join",grplab=Region,returnplot=T,exportplot=F,subsetgrp=c("NM1","AZ3","AZ1","AZ4","AZ2","UT1","Yosemite","CA1","CA2","CA3","AK1","AK3","HaidaGwaii","AK2","AK4","PrinceRupert", "Exstew", "Kispiox", "Whistler", "Golden","Maxan","FortFraser","MacKenzie","Hudson'sHope","Swan","PA1","ME2"),ordergrp=T,grplabsize=1,linesize=0.5,pointsize=2,grplabangle=90,grplabheight = 14)
+
+pdf("HETH.v0.all.rmcont.Admix.K2-7.pdf",useDingbats = F)
+grid.arrange(p2rm$plot[[1]],p3rm$plot[[1]],p4rm$plot[[1]],p5rm$plot[[1]],p6rm$plot[[1]],p7rm$plot[[1]],layout_matrix=matrix(c(1,2,3,4,5,6),ncol=2,byrow=T))
+dev.off()
+```
+
+```{r}
+#output the K=5, run 1
+cbind(State.order,slist[[21]])
+write.table(cbind(State.order,slist[[21]]),file="HETH.regionFID.rmcont.K5.run1.admixture.indivq",quote=F,sep="\t")
+```
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

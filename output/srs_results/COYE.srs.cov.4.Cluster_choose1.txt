@@ -1,0 +1,16 @@
+vcf_name	cluster	Region_site	Region_pop
+MOR_12	1	FL	
+OBY_07	1	FL	
+NAB_07	1	FL	
+10N17234	2	NM	
+17N02622	2	MT	Seely Lake
+16N0010	3	CA	Olema
+16N0014	3	CA	Olema
+02N8421	4	WA	
+02N8424	4	WA	
+16N0007	5	CA	Olema
+16N0009	5	CA	Olema
+16N0012	6	CA	Olema
+16N0013	6	CA	Olema
+98N2078	7	ON	Hilliardton
+98N2096	7	ON	Hilliardton

@@ -1,0 +1,75 @@
+---
+title: "LFMM"
+author: "Christen Bossu"
+date: "6/6/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## LFMM to identify candidate genes
+
+This is done on cluster however, we first need to create LFMM file.
+
+In R, we first load libraries:
+```{r}
+devtools::install_github("bcm-uga/LEA")
+library(LEA)
+browseVignettes("LEA")
+library(tidyverse)
+```
+
+```{r}
+output=LEA::vcf2geno("coye.EAST.plate1.sort.SNP.maf05.miss.clean48indv_noOut.138K.recode.vcf","coye.EAST.RAD.maf05.48ind.138K.geno")
+output=LEA::geno2lfmm("coye.EAST.RAD.maf05.48ind.138K.geno","coye.EAST.RAD.maf05.48ind.138K.geno.lfmm")
+
+summary(output)
+ind<-read_delim("../LFMM/HETH.keep_noHZ.txt",delim="\t",col_names=F) %>% rename(IID=X1)
+dim(ind)
+met<-read_delim('HETH.Plate1_4.meta.final_fixed.csv',delim=",") 
+env<-read_delim("LFMM/hethindvsswenv.txt",delim=" ",col_names=T)
+dim(env)
+env2<-ind %>% left_join(env) %>% write.table("LFMM/hethindvsswenv.order.txt")
+dim(env2)
+
+project = NULL
+project = snmf("HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.no_HZ.geno", K = 1:10,entropy = TRUE, repetitions = 5, project = "new")
+
+##MIN num of ancestral populations is 4 for heth- doesn't make sense
+pdf("HETH.rmcont.snmf_geno.K1-10.plot.pdf",useDingbats = F)
+plot(project, col = "blue", pch = 19, cex = 1.2)
+dev.off()
+
+# select the run with the lowest cross-entropy value
+best = which.min(cross.entropy(project,K=2))
+plot(project, col = "blue", pch = 19, cex = 1.2)
+
+# Impute the missing genotypes
+impute(project, "HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.geno.lfmm",method = 'mode', K = 4, run = best)
+```
+
+
+In the terminal to run LFMM:
+##Designate path to inputfiles
+##in current directory
+
+```
+i=$1
+mkdir coyeres_K5
+#for i in 1 2 3 4 5; do, do this outside the sbatch script for 5 jobs
+./bin/LFMM -x HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.only_HZ.geno.lfmm \
+-v  hethindvsswenv.HZonly.order.nohead.txt -K 2 -m -o hethres_HZonly_K2/HETHres.HZ.K2.loop."$i" -p 4
+#done
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
