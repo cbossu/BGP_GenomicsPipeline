@@ -11,12 +11,10 @@ output:
 
 ## Overview
 
-To work through this, clone the repository (an RStudio project) at
-[https://github.com/eriqande/make-a-BGP-map](https://github.com/eriqande/make-a-BGP-map) to
-get all the necessary input files, etc.  Then open up the RStudio project and run
-though `Make-a-BGP-map-Notebook.Rmd`.
+To begin with, I first cloned the super cool repository (an RStudio project) at
+[https://github.com/eriqande/make-a-BGP-map](https://github.com/eriqande/make-a-BGP-map) to get all the necessary input files, etc.  This clone is for creating a genoscape map for the Willow flycatcher. I then used the base of this code to create a script to generate the genoscape for the Common yellowthroat. This is one small section of the BGP genomic pipeline, with brand new input files specific for Common yellowthroat. Then open up the RStudio project and run though `Make-a-BGP-map-Notebook.Rmd`.
 
-This chronicles the steps taken whilst making a genoscape for willow flycatchers.
+This chronicles the steps taken whilst making a genoscape for the Common yellowthroat
 The order in which we discuss building up this map is different from the order in which
 we put layers down to actually make the map. Here, we will start with making the
 genoscape, which is actually the part that sits atop the whole map.  But we do that
@@ -35,9 +33,9 @@ layer of the map, which is the raster with earthforms and shading from Natural E
 This work draws on a few functions that I have in packages that I have up on GitHub,
 namely:
 
-1. **my fork** of `tess3r`.  Note that you can't use the default version of `tess3r`,
-you have to use my fork of it, which has some extra functionality.
-2. my package `genoscapeRtools`
+1. **Eric's fork** of `tess3r`.  Note that you can't use the default version of `tess3r`,
+you have to use Eric's fork of it, which has some extra functionality.
+2. Eric's package `genoscapeRtools`
 
 Get those packages like this:
 ```{r, eval=FALSE}

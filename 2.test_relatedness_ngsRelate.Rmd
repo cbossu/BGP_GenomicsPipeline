@@ -9,9 +9,9 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Testing relatedness
+## Motivation behind testing relatedness
 
-One reason high covariance among individuals can happen is relatedness. To test relatedness among the indivdiuals, to confirm the removal of those indivdials from subsequent analyses, I use ngsRelate in the terminal.
+One reason you may have high genetic covariance among individuals (identified in the previous srs section) is relatedness. Parent/offpsring relationships and full siblings are more genetically similar and therefore have higher genetic covariance. To test relatedness among the indivdiuals, and to potentially confirm the removal of those indivdials from subsequent analyses, I use ngsRelate in the terminal.
 
 Here, define the path to your ngsRelate software program, which you can git here:
 
