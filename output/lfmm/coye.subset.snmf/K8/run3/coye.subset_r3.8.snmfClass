@@ -1,0 +1,6 @@
+new("snmfClass", directory = "K8/run3/", snmfClass.file = "coye.subset_r3.8.snmfClass", 
+    K = 8L, run = 3L, CPU = 1L, seed = 1700528561L, alpha = 10, 
+    percentage = 0.05, I = 0L, iterations = 200L, entropy = TRUE, 
+    tolerance = 1e-05, crossEntropy = 0.635001546896626, ploidy = 2L, 
+    Q.input.file = "", Q.output.file = "coye.subset_r3.8.Q", 
+    G.output.file = "coye.subset_r3.8.G")

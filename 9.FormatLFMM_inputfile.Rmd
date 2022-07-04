@@ -15,61 +15,173 @@ This is done on cluster however, we first need to create LFMM file.
 
 In R, we first load libraries:
 ```{r}
-devtools::install_github("bcm-uga/LEA")
+#devtools::install_github("bcm-uga/LEA")
 library(LEA)
 browseVignettes("LEA")
+library(gdata)
 library(tidyverse)
 ```
 
-```{r}
-output=LEA::vcf2geno("data/ngsRelate/COYEP1-4c.merged_gatk.srs_filt.subset.recode.vcf","coye.subset.geno")
-output=LEA::geno2lfmm("coye.subset.geno","coye.subset.geno.lfmm")
+```{r, echo=F}
+output<-LEA::vcf2geno("data/ngsRelate/COYEP1-4c.merged_gatk.srs_filt.subset.recode.vcf","output/lfmm/coye.subset.geno")
+output<-LEA::geno2lfmm("output/lfmm/coye.subset.geno","output/lfmm/coye.subset.geno.lfmm")
 
 summary(output)
-ind<-read_delim("data/srs/test.ind",delim="\t",col_names=F) %>% rename(IID=X1)
-dim(ind)
-met<-read_delim('HETH.Plate1_4.meta.final_fixed.csv',delim=",") 
-env<-read_delim("LFMM/hethindvsswenv.txt",delim=" ",col_names=T)
-dim(env)
-env2<-ind %>% left_join(env) %>% write.table("LFMM/hethindvsswenv.order.txt")
-dim(env2)
+
 
 project = NULL
-project = snmf("coye.subset.geno", K = 1:10,entropy = TRUE, repetitions = 5, project = "new")
+project = snmf("output/lfmm/coye.subset.geno", K = 1:10,entropy = TRUE, repetitions = 5, project = "new")
 
-##MIN num of ancestral populations is 4 for heth- doesn't make sense
-pdf("output/coye.lfmm.K1-10.plot.pdf",useDingbats = F)
+```
+
+##Minimum number of ancestral populations is 4 or 5 for coye, 
+
+This might make sense, but choose the K that you choose from admixture and for your genoscape map
+
+```{r}
+pdf("plots/lfmm_plots/coye.lfmm.K1-10.plot.pdf",useDingbats = F)
 plot(project, col = "blue", pch = 19, cex = 1.2)
 dev.off()
 
 # Normally select the run with the lowest cross-entropy value
-best = which.min(cross.entropy(project,K=2))
+best = which.min(cross.entropy(project,K=10))
 plot(project, col = "blue", pch = 19, cex = 1.2)
 
 # Impute the missing genotypes
-impute(project, "HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.geno.lfmm",method = 'mode', K = 7, run = best)
+impute(project, "output/lfmm/coye.geno.lfmm",method = 'mode', K = 4, run = best)
+```
+
+##Create the environmental input files for LFMM for individuals
+First, create the coordinate file in the order of your indiivuals, so the rows match up.
+```{r}
+
+ind<-read_delim("data/admixture/coye.subset.no_chr.fam",delim=" ",col_names=F) %>% rename(Sample=X1) %>% select(Sample)
+dim(ind)
+met<-read.xls('data/srs/COYE_master_Updated06062022.xlsx',sheet=3) %>% 
+  rename(Sample=Sample_data) %>% 
+  dplyr::select(Sample,Long,Lat) %>%
+  distinct()
+
+Long_Lat_tibble<-ind %>% left_join(met) %>%
+  dplyr::select(Sample, Long,Lat) 
+
+coord<-Long_Lat_tibble %>%
+  dplyr::select(Long,Lat) %>% 
+  rename(lat=Lat,lon=Long) 
+coord
+```
+
+Read in your enviornmental files. Here, I'm just choosing the bioclim, but you can add other variables too, such as elevation (srtm), productivity measures (ndvi, ndvistd), moisture (qscat), vegetation cover (tree), human impact (hii), etc.
+
+```{r}
+library(raster)
+library(sp)
+library(rgdal)
+
+bio01=raster("~/Documents/CurrentProjects/CSU_UCLA/BGP/WorldClim/wc2.0_30s_bio/wc2.0_bio_30s_01.tif")
+bio02=raster("~/Documents/CurrentProjects/CSU_UCLA/BGP/WorldClim/wc2.0_30s_bio/wc2.0_bio_30s_02.tif")
+bio03=raster("~/Documents/CurrentProjects/CSU_UCLA/BGP/WorldClim/wc2.0_30s_bio/wc2.0_bio_30s_03.tif")
+bio04=raster("~/Documents/CurrentProjects/CSU_UCLA/BGP/WorldClim/wc2.0_30s_bio/wc2.0_bio_30s_04.tif")
+bio05=raster("~/Documents/CurrentProjects/CSU_UCLA/BGP/WorldClim/wc2.0_30s_bio/wc2.0_bio_30s_05.tif")
+bio06=raster("~/Documents/CurrentProjects/CSU_UCLA/BGP/WorldClim/wc2.0_30s_bio/wc2.0_bio_30s_06.tif")
+bio07=raster("~/Documents/CurrentProjects/CSU_UCLA/BGP/WorldClim/wc2.0_30s_bio/wc2.0_bio_30s_07.tif")
+bio08=raster("~/Documents/CurrentProjects/CSU_UCLA/BGP/WorldClim/wc2.0_30s_bio/wc2.0_bio_30s_08.tif")
+bio09=raster("~/Documents/CurrentProjects/CSU_UCLA/BGP/WorldClim/wc2.0_30s_bio/wc2.0_bio_30s_09.tif")
+bio10=raster("~/Documents/CurrentProjects/CSU_UCLA/BGP/WorldClim/wc2.0_30s_bio/wc2.0_bio_30s_10.tif")
+bio11=raster("~/Documents/CurrentProjects/CSU_UCLA/BGP/WorldClim/wc2.0_30s_bio/wc2.0_bio_30s_11.tif")
+bio12=raster("~/Documents/CurrentProjects/CSU_UCLA/BGP/WorldClim/wc2.0_30s_bio/wc2.0_bio_30s_12.tif")
+bio13=raster("~/Documents/CurrentProjects/CSU_UCLA/BGP/WorldClim/wc2.0_30s_bio/wc2.0_bio_30s_13.tif")
+bio14=raster("~/Documents/CurrentProjects/CSU_UCLA/BGP/WorldClim/wc2.0_30s_bio/wc2.0_bio_30s_14.tif")
+bio15=raster("~/Documents/CurrentProjects/CSU_UCLA/BGP/WorldClim/wc2.0_30s_bio/wc2.0_bio_30s_15.tif")
+bio16=raster("~/Documents/CurrentProjects/CSU_UCLA/BGP/WorldClim/wc2.0_30s_bio/wc2.0_bio_30s_16.tif")
+bio17=raster("~/Documents/CurrentProjects/CSU_UCLA/BGP/WorldClim/wc2.0_30s_bio/wc2.0_bio_30s_17.tif")
+bio18=raster("~/Documents/CurrentProjects/CSU_UCLA/BGP/WorldClim/wc2.0_30s_bio/wc2.0_bio_30s_18.tif")
+bio19=raster("~/Documents/CurrentProjects/CSU_UCLA/BGP/WorldClim/wc2.0_30s_bio/wc2.0_bio_30s_19.tif")
+
+```
+
+Let's look at one raster, and then create a raster stack
+```{r}
+plot(bio13,main="World climate raster of Bio13, Elevation")
+
+##Combine rasters into one stack
+bioclim<-stack(bio01,bio02,bio03,bio04,bio05,bio06,bio07,bio08,bio09,bio10,bio11,bio12,bio13,bio14,bio15,bio16,bio17,bio18,bio19)
+
+bioclim_coye<-raster::extract(bioclim,coord,fun=mean)
+```
+
+```{r}
+cbind(coord,bioclim_coye) %>%  write.table("data/lfmm/coyeindvwenv.order_nohead.txt",row.names=F,sep="\t",quote=F,col.names = F)
+
+
 ```
 
 
-In the terminal to run LFMM:
-##Designate path to inputfiles
-##in current directory
+##In the terminal to run LFMM:
+
+Designate path to inputfiles in current directory
 
 ```
 i=$1
-mkdir coyeres_K5
+mkdir coyeres_K7
 #for i in 1 2 3 4 5; do, do this outside the sbatch script for 5 jobs
-./bin/LFMM -x HETH.all.clean.hethv0.rm_hets.rmrel.rmcont.only_HZ.geno.lfmm \
--v  hethindvsswenv.HZonly.order.nohead.txt -K 2 -m -o hethres_HZonly_K2/HETHres.HZ.K2.loop."$i" -p 4
+./bin/LFMM -x coye.subset.geno.lfmm \
+-v  coyeindvwenv.order_nohead.txt -K 7 -m -o coyeres_K7/coyeres.K7.loop."$i" -p 4
 #done
 ```
 
-## Including Plots
+Once all jobs are run, then you combine to get the candidate loci using another script to average across the 5 runs. Only do this for the environmental variables deemed important within gradient forest
 
-You can also embed plots, for example:
+```
+#SBATCH -t 8:00:00
+#################
+#quality of service; think of it as job priority
+#SBATCH -p RM-shared
+#################
+#number of nodes
+#SBATCH -N 1
+#SBATCH --ntasks-per-node 5
+#################
+#Note 4400Mb/core
+#SBATCH --mem=8G
+#################
+#################
+#get emailed about job BEGIN, END, and FAIL
+#SBATCH --mail-type=END
+#################
+#who to send email to; please change to your email
+#SBATCH  --mail-user=christen.bossu@gmail.com
+#################
+#echo commands to stdout
+set -x
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+source ~/.bashrc
+conda activate test-env #conda environment has R
+module load intel
+
+###file folder with names for coye lfmm run
+###coyeres_K7/coyeresK7.loop.2_s3.5.zscore
+
+## i is which variable that is from graident forest. You'll run this for however many variables you want candidate genes for
+
+i=$
+
+Rscript averageLFMM.allvar.R "$i"
+
+```
+Ouput will be  a list of candidate variants, in order, associated with the bioclim variable you chose. They are found in a file: coyeK7.lfmm.candidates.var11.5.csv
+
+"x"
+975
+1579
+24140
+1730
+15892
+
+Intersect this list with the .map file in R to get actual variant names.
+
+```{r}
+map<-read_delim("data/admixture/coye.subset.map",delim="\t",col_names = F)
+map[c(975,1579,24140,1730,15892),]
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
