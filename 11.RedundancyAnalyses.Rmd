@@ -1,0 +1,267 @@
+---
+title: "Redundancy Analyses (individuals)"
+author: "Christen Bossu"
+date: "7/4/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+##Motivation
+Redundancy Analysis (RDA) is a genotype-environment association (GEA) method to detect loci under selection (Forester et al., 2018). RDA is a multivariate ordination technique that can be used to analyze many loci and environmental predictors simultaneously. RDA determines how groups of loci covary in response to the multivariate environment, and can detect processes that result in weak, multilocus molecular signatures (Rellstab et al., 2015; Forester et al., 2018).
+
+Here we use RDA to identify candidate loci associated with the uncorrelated environmental variables identified in gradient forest. Because RDA doesn't do well with multicollinearity, you could also do a model selection of the environmental predictors. We do not do that in this part, but there's plenty of tutorial online that show how this is done. I like using the ranked variables from gradient forest, because importance the environmental predictors is more important to me than choosing ones in numerical order.
+
+Load libraries
+```{r}
+library(vegan)
+library(adegenet)
+library(tidyverse)
+require(readr)
+library(data.table)
+library(LEA)
+library(gdata)
+```
+
+The input files that you use for lfmm, are also what you'll use for redundancy analyses. Although you'll need an individual column for the genetic data
+
+Add individual sample column to lfmm file in unix and the environmental file from lfmm
+```
+cat data/admixture/coye.subset.no_chr.fam|cut -f 1 -d " " > data/admixture/coye.subset.no_chr.fam.ind
+
+paste data/admixture/coye.subset.no_chr.fam.ind output/lfmm/coye.subset.geno.lfmm |tr -s " " "\t" > data/RDA/coye.subset.geno.lfmm.w_indcol.txt
+
+paste data/admixture/coye.subset.no_chr.fam.ind data/lfmm/coyeindvwenv.order.txt |tr -s " " "\t" > data/RDA/coyeindvwenv.order.w_indcol.txt
+```
+
+Read in the genetic data
+```{r}
+gen.impall<- read_delim(file="data/RDA/coye.subset.geno.lfmm.w_indcol.txt", delim="\t", col_names=FALSE) %>% column_to_rownames(var="X1")
+head(gen.impall)
+```
+
+Now read in the environmental data
+```{r}
+env<-read_delim("data/RDA/coyeindvwenv.order.w_indcol.txt",delim="\t") %>% rename(bio_15=wc2.0_bio_30s_15,bio_08=wc2.0_bio_30s_08,bio_05=wc2.0_bio_30s_05)
+str(env)
+```
+
+Confirm that genotypes and environmental data are in the same order
+
+```{r}
+identical(rownames(gen.impall), env[,1]) 
+##Do we need individual names in env 
+env$individual <- as.character(env$Sample) # Make individual names 
+length(env)
+
+```
+
+Run the analysis
+
+```{r}
+coye.rda.all <- rda(gen.impall ~ bio_15 + bio_08 + bio_05, data=env, scale=T)
+
+##Don't save the RDS file because it's too large
+#saveRDS(coye.rda.all,"output/RDA/COYE.RDAresutls.194Indiv_NOimpute.RDS")
+```
+
+Is it significant?
+```{r}
+RsquareAdj(coye.rda.all) ##explains 2.729683% of genetic variation (r2=.0.04241)
+summary(eigenvals(coye.rda.all, model = "constrained"))
+```
+
+Plot scree plot
+```{r}
+pdf('plots/RDA_plots/COYE.RDA.194ind.all_sites.100tree.scree.pdf')
+screeplot(coye.rda.all)
+dev.off()
+
+screeplot(coye.rda.all)
+```
+
+```{r}
+signif.full <- anova.cca(coye.rda.all, parallel=getOption("mc.cores")) # default is permutation=999
+
+#saveRDS(signif.full,"output/RDA/CAWA.RDA_indiv.signif_full.RDS")
+signif.full
+```
+
+Now plot
+```{r}
+signif.axis <- anova.cca(coye.rda.all, by="axis", parallel=getOption("mc.cores"))
+signif.axis
+saveRDS(signif.axis,"output/RDA/COYE.RDA_indiv.signif_axis.RDS")
+
+vif.cca(coye.rda.all)
+
+```
+
+```{r}
+met<-read.xls('data/srs/COYE_master_Updated06062022.xlsx',sheet=3) %>% 
+  rename(Sample=Sample_data) %>% 
+  dplyr::select(Sample,Long,Lat,State) %>% dplyr::select(Sample,State)
+
+Long_Lat_tibble<-env %>% left_join(met) %>% 
+  distinct() 
+
+Long_Lat_tibble
+
+
+library(RColorBrewer)
+
+West.cols <- brewer.pal(n = 7, name = "PuRd")[c(1:7)]
+SW.cols <- brewer.pal(n = 9, name = "BuGn")[c(3:5)]
+NE.cols <- brewer.pal(n = 9, name = "Blues")[c(2:6)]
+MW.cols <- brewer.pal(n = 9, name = "YlOrRd")[c(2:8)]
+Res.cols<-brewer.pal(n = 9, name = "Set1")[c(8,9)]
+coye.color <- c(West.cols,SW.cols,NE.cols,MW.cols,Res.cols)
+
+## extract scores - these are coordinates in the RDA space
+
+Long_Lat_tibble$State2 <- factor(Long_Lat_tibble$State, levels = c("AZ","CA","WA","AK","BC","MT","AB","NV","NM","WY","KS","MI","KY","ON","NY","PA","NB","QUE","NC","AL","FL"))
+eco <- Long_Lat_tibble$State2
+bg_ind <- c("#F1EEF6" ,"#D4B9DA", "#C994C7", "#DF65B0", "#DD1C77", "#CCECE6", "#99D8C9" ,"#66C2A4", "#DEEBF7" ,"#C6DBEF" ,"#9ECAE1", "#6BAED6", "#4292C6" ,"#2171B5", "#FFEDA0", "#FED976", "#FEB24C", "#FD8D3C","#FC4E2A", "#E31A1C" ,"#BD0026")
+
+bg_ind[eco]
+
+pdf('plots/RDA_plots/COYE.194ind.all_sites.no_snps.RAD1_2.pdf',useDingbats = F)
+plot(coye.rda.all, type="n", frame=F,scaling=3)
+#points(coye.rda.all, display="species", pch=20, cex=0.7, col="gray32", scaling=3)           # the SNPs
+points(coye.rda.all, pch=21, cex=1.3, col="gray32", scaling=3, bg=bg_ind[eco]) # the birds
+text(coye.rda.all, scaling=3, display="bp", col="#0868ac", cex=1)                           # the predictors
+legend("topleft",legend=levels(eco), bty="n", col="gray32", pch=21, cex=.5, pt.bg=bg_ind)
+dev.off()
+```
+
+```{r}
+plot(coye.rda.all, type="n", frame=F,scaling=3)
+#points(coye.rda.all, display="species", pch=20, cex=0.7, col="gray32", scaling=3)           # the SNPs
+points(coye.rda.all, pch=21, cex=1.3, col="gray32", scaling=3, bg=bg_ind[eco]) # the birds
+text(coye.rda.all, scaling=3, display="bp", col="#0868ac", cex=1)                           # the predictors
+legend("topleft",legend=levels(eco), bty="n", col="gray32", pch=21, cex=.5, pt.bg=bg_ind)
+```
+Idenitfy candidate loci
+```{r}
+load.rda <- scores(coye.rda.all, choices=c(1:3), display="species")  # Species scores for the first three constrained
+pdf('plots/RDA_plots/COYE.194ind.histRDA1.pdf')
+hist(load.rda[,1], main="Loadings on RDA1")
+dev.off()
+pdf('plots/RDA_plots/COYE.194ind.histRDA2.pdf')
+hist(load.rda[,2], main="Loadings on RDA2")
+dev.off()
+pdf('plots/RDA_plots/COYE.194ind.histRDA3.pdf')
+hist(load.rda[,3], main="Loadings on RDA3") 
+dev.off()
+
+```
+##candidate variants= tail variants
+
+```{r}
+outliers <- function(x,z){
+  lims <- mean(x) + c(-1, 1) * z * sd(x)     # find loadings +/-z sd from mean loading     
+  x[x < lims[1] | x > lims[2]]               # locus names in these tails
+}
+
+```
+```{r}
+map<-read_delim("data/admixture/coye.subset.map",delim="\t",col_names = F)
+cand1 <- outliers(load.rda[,1],3) #stdev 3: 143 candidate variants on RDA1, and 135 on RDA2, 125 on RDA3
+length(cand1)
+cand1 %>% write.table("output/RDA/COYE.194ind.RDA1.cand_loci.stdev3.txt",row.names=T,quote=F,sep="\t")
+pos1<-map %>% mutate(pos=paste(X1,X4,sep=".")) %>% 
+  dplyr::select(pos)
+candpos1<-pos1[c(2725,2954,3815,5807,5808,5809,5810,5811,6583,6584,6595,7150,7289,7290,7291,7292,7967,8086,8115,8116,8117,8476,8701,9865,10276,10279,10296,11400,11401,12024,13221,13483,14559,16387,16436,16789,16942,16943,16944,16945,17244,17529,17530,19266,19333,19436,19680,19916,21446,21667,21928,22513,22514,22515,22516,22912,23243,23244,24580,24757,24821,24822,24823,24908,26249,26250,28112,28832,29339,29396,30116,30117,30355,31168,31799,32514,32698,33429,33891,33892,33999,35623,35960,36173,36174,36589,36770,37718,37733,38664,39166,39321,39677,39700,40350,40384,40457,40458,40590,40591,40592,40593,40594,41120,41284,41525,41766,41767,42097,42099,42100,42351,42830,42918,43062,43273,43286,44140,44141,44143,44144,44145,44146,44147,44148,44149,44161,44209,44351,45112,45230,45529,46226,47129,47130,47243,47727,48344,48490,48998,48999,49081,49187),]
+candpos1
+write.table(candpos1,"output/RDA/COYE.21ClimGroup.RDA1.candidateSNPS.table.scaf_pos.txt",row.names=F,quote=F,sep="\t")
+
+```
+
+So you would do this for each RDA axis. Different environmental variables load to different RDA axis, so these are the candidate loci associated with the environmental variables.
+
+You can then visualize the outlier variants
+```{r}
+cand1b <- cbind.data.frame(rep(1,times=length(cand1)), names(cand1), unname(cand1))
+colnames(cand1b) <- c("axis","snp","loading")
+
+cand <- cand1b 
+cand$snp <- as.character(cand$snp)
+
+ncand<- nrow(cand) 
+
+foo10 <- matrix(nrow=(ncand), ncol=3)  # 3 columns for 3 predictors
+colnames(foo10) <- c("bio_5","bio_8","bio_15")
+
+for (i in 1:length(cand$snp)) {
+  nam <- cand[i,2]
+  snp.gen <- gen.impall[,nam]
+  foo10[i,] <- apply(env[,c(8,11,18)],2,function(x) cor(x,snp.gen))
+}
+
+cand <- cbind.data.frame(cand,foo10)  
+head(cand)
+```
+This code chunk determines the correlation of the variant to the environmental variable and then considers the highest correlation the variable that variant is associated with.
+```{r}
+
+for (i in 1:length(cand$snp)) {
+  bar <- cand[i,]
+  cand[i,7] <- names(which.max(abs(bar[4:6]))) # gives the variable
+  cand[i,8] <- max(abs(bar[4:6]))              # gives the correlation
+}
+
+colnames(cand)[7] <- "predictor"
+colnames(cand)[8] <- "correlation"
+
+cand
+```
+
+
+This is the number of variants associated with each predictor for RDA1. You could do this across RDA1, 2 and 3
+```{r}
+table(cand$predictor)
+```
+
+Now we can put color to the candidate variants and plot just the variants.
+
+```{r}
+sel <- cand$snp
+head(sel)
+env <- cand$predictor
+env[env=="bio_5"] <- '#1f78b4'
+env[env=="bio_8"] <- '#6a3d9a'
+env[env=="bio_15"] <- '#e31a1c'
+
+summary(coye.rda.all)
+
+# color by predictor:
+col.pred <- rownames(coye.rda.all$CCA$v) # pull the SNP names
+
+for (i in 1:length(sel)) {           # color code candidate SNPs
+  foo <- match(sel[i],col.pred)
+  col.pred[foo] <- env[i]
+}
+
+col.pred[grep("X",col.pred)] <- '#f1eef6' # non-candidate SNPs
+empty <- col.pred
+empty[grep("#f1eef6",empty)] <- rgb(0,1,0, alpha=0) # transparent
+empty.outline <- ifelse(empty=="#00FF0000","#00FF0000","gray32")
+bg <- c('#1f78b4','#6a3d9a','#e31a1c')
+
+
+pdf('plots/RDA_plots/COYE.subset.SNP_outlier_color.RDA1.pdf',useDingbats = F)
+plot(coye.rda.all, type="n", scaling=3, xlim=c(-1,1), ylim=c(-1,1))
+points(coye.rda.all, display="species", pch=21, cex=1, col="gray32", bg=col.pred, scaling=3)
+points(coye.rda.all, display="species", pch=21, cex=1, col=empty.outline, bg=empty, scaling=3)
+text(coye.rda.all, scaling=3, display="bp", col="#0868ac", cex=1)
+legend("bottomright", legend=c("bio_5","bio_8","bio_15"), bty="n", col="gray32", pch=21, cex=1, pt.bg=bg)
+dev.off()
+
+plot(coye.rda.all, type="n", scaling=3, xlim=c(-1,1), ylim=c(-1,1))
+points(coye.rda.all, display="species", pch=21, cex=1, col="gray32", bg=col.pred, scaling=3)
+points(coye.rda.all, display="species", pch=21, cex=1, col=empty.outline, bg=empty, scaling=3)
+text(coye.rda.all, scaling=3, display="bp", col="#0868ac", cex=1)
+legend("bottomright", legend=c("bio_5","bio_8","bio_15"), bty="n", col="gray32", pch=21, cex=1, pt.bg=bg)
+
+```

@@ -9,9 +9,13 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Ebird
+### 1. Motivation
 
-Can we create a new range map from ebird, to be split into bredding genetic cluster polygons later
+The R package ebirdst uses bird abundances to create a range map split into different stages: breeding, nonbreeding, migrating. In some cases you can also specify whether there are resident populations (i.e. year round). This is handy to use for migrating birds, but for many species you can download the range map directly.
+
+## eBird
+
+The objective is to create a new range map from eBird, to be split into breeding genetic cluster polygons later and wintering nodes
 ```{r cars}
 # install.packages("remotes")
 #remotes::install_github("CornellLabofOrnithology/ebirdst")

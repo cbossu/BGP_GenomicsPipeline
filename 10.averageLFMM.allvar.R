@@ -2,7 +2,7 @@
 comarg     <- commandArgs()
 var  <- comarg[6]
 
-#HETHres.noHZ.K5.loop.3_s20.5.zscore
+
 z.table = NULL
 for (i in 1:5){
   file.name = paste("coyeres_K7/coyeresK7.loop.",i,"_s",var,".5.zscore", sep="")

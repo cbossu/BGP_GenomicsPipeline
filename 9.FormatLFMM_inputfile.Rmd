@@ -8,12 +8,17 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+##Motivation
+Once you know what environmental variables are important underlying the population structure of your species, the next step might be too identify candidate loci associated with those variables. We do this using a latent factor mixed model analysis- LFMM. 
+
+Latent factor mixed models are statistical regression models to test associations between a multidimensional set of response variables and a set of variables of interest. The response variables can include genotypes, methylation levels, gene expression levels for n individuals. The explanatory variables can represent environmental exposure or phenotypic traits.
 
 ## LFMM to identify candidate genes
 
 This is done on cluster however, we first need to create LFMM file.
 
 In R, we first load libraries:
+
 ```{r}
 #devtools::install_github("bcm-uga/LEA")
 library(LEA)
